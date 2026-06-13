@@ -4,16 +4,64 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>4fin - Klientský Portál</title>
+    <!-- PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="4fin Klient">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+    <link rel="apple-touch-icon" href="https://www.4fin.cz/wp-content/uploads/2021/03/cropped-favicon-1-192x192.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-    
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-CG9D3L70JB"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Firebase -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+        import { getFirestore, doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-      gtag('config', 'G-CG9D3L70JB');
+        const firebaseConfig = {
+            apiKey: "AIzaSyB1tggmoUwIu8dzVe77i9hgNIZcNpSHNow",
+            authDomain: "fin-benefitni-program.firebaseapp.com",
+            projectId: "fin-benefitni-program",
+            storageBucket: "fin-benefitni-program.firebasestorage.app",
+            messagingSenderId: "789000211657",
+            appId: "1:789000211657:web:e03a866afb55597b8d1118",
+            measurementId: "G-72Y32712L2"
+        };
+
+        // Nepokračuj pokud config není vyplněn
+        if (firebaseConfig.apiKey.startsWith('TVUJ')) {
+            console.warn('Firebase: config není vyplněn, běží v offline režimu');
+            window.firebaseReady = false;
+        } else {
+            const app = initializeApp(firebaseConfig);
+            const db = getFirestore(app);
+            // Globální funkce přístupná z nemodulového JS
+            window.verifyInviteCodeFirebase = async function(code) {
+            const timeout = new Promise(resolve =>
+                setTimeout(() => resolve({ valid: false, reason: 'error' }), 5000)
+            );
+            const verify = (async () => {
+                try {
+                    const ref = doc(db, 'invite_codes', code.toUpperCase());
+                    const snap = await getDoc(ref);
+                    if (!snap.exists()) return { valid: false, reason: 'not_found' };
+                    const data = snap.data();
+                    if (data.used) return { valid: false, reason: 'used' };
+                    await updateDoc(ref, { used: true });
+                    return { valid: true, poradce: data.poradce || null };
+                } catch (e) {
+                    return { valid: false, reason: 'error' };
+                }
+            })();
+                return Promise.race([verify, timeout]);
+            };
+
+            window.firebaseReady = true;
+            console.log('Firebase připraveno');
+        }
     </script>
+    
+    <!-- GA4 se načte až po GDPR souhlasu (viz initAnalytics()) -->
     <style>
         /* === CSS PROMĚNNÉ (ULTRA PREMIUM) === */
         :root {
@@ -43,19 +91,62 @@
 
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
 
-        body { 
+        body {
             font-family: 'Inter', sans-serif; background-color: var(--bg-base);
-            margin: 0; padding: 0; display: flex; justify-content: center; 
+            margin: 0; padding: 0; display: flex; justify-content: center;
             color: var(--text-primary); min-height: 100vh;
             -webkit-font-smoothing: antialiased;
             transition: background-color 0.5s ease, color 0.5s ease;
         }
 
-        .app-container { 
-            width: 100%; max-width: 480px; background-color: var(--bg-base); 
+        /* Desktop: phone frame */
+        @media (min-width: 600px) {
+            body {
+                background: radial-gradient(ellipse at 30% 20%, #1a0010 0%, #050505 60%, #000 100%);
+                align-items: flex-start;
+                padding: 30px 20px;
+                min-height: 100vh;
+            }
+        }
+
+        .app-container {
+            width: 100%; max-width: 480px; background-color: var(--bg-base);
             position: relative; min-height: 100vh; transition: background-color 0.5s ease;
             padding-bottom: 100px;
         }
+
+        @media (min-width: 600px) {
+            .app-container {
+                border-radius: 44px;
+                border: 1px solid rgba(255,255,255,0.08);
+                box-shadow: 0 50px 100px rgba(0,0,0,0.9), 0 0 0 1px rgba(177,0,77,0.08);
+                overflow-x: hidden;
+            }
+            [data-theme="light"] .app-container {
+                border: 1px solid rgba(0,0,0,0.08);
+                box-shadow: 0 50px 100px rgba(0,0,0,0.2);
+            }
+        }
+
+        /* Install prompt banner */
+        .install-banner {
+            display: none;
+            margin: 0 20px 20px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 16px 18px;
+            align-items: center;
+            gap: 14px;
+            box-shadow: var(--shadow);
+        }
+        .install-banner.visible { display: flex; }
+        .install-banner-icon { font-size: 28px; flex-shrink: 0; }
+        .install-banner-text { flex: 1; }
+        .install-banner-text strong { display: block; font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+        .install-banner-text span { font-size: 11px; color: var(--text-secondary); }
+        .install-banner-btn { background: var(--4fin-malinova); color: #fff; border: none; border-radius: 10px; padding: 10px 16px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; font-family: 'Inter', sans-serif; }
+        .install-banner-close { background: none; border: none; color: var(--text-secondary); font-size: 18px; cursor: pointer; padding: 4px; flex-shrink: 0; }
         
         .screen { display: none; opacity: 0; transition: opacity 0.4s ease; }
         .screen.active { display: block; opacity: 1; }
@@ -225,9 +316,48 @@
         .adv-bio h4 { margin: 0 0 20px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-secondary);}
         .adv-bio p { margin: 0 0 15px 0; font-size: 15px; color: var(--text-secondary); line-height: 1.8; font-weight: 300;}
 
+        /* --- GDPR CONSENT --- */
+        .gdpr-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 10000; display: flex; align-items: flex-end; justify-content: center; padding: 20px; backdrop-filter: blur(8px); }
+        .gdpr-box { width: 100%; max-width: 480px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 24px; padding: 30px 25px; box-shadow: 0 -20px 60px rgba(0,0,0,0.5); }
+        .gdpr-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 500; margin: 0 0 12px 0; color: var(--text-primary); }
+        .gdpr-text { font-size: 13px; color: var(--text-secondary); line-height: 1.7; margin: 0 0 24px 0; font-weight: 300; }
+        .gdpr-text a { color: var(--4fin-malinova); text-decoration: none; }
+        .gdpr-btns { display: flex; flex-direction: column; gap: 10px; }
+        .gdpr-accept { background: var(--4fin-malinova); color: #fff; border: none; border-radius: 12px; padding: 16px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; cursor: pointer; font-family: 'Inter', sans-serif; transition: opacity 0.2s; }
+        .gdpr-accept:hover { opacity: 0.85; }
+        .gdpr-reject { background: transparent; color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; transition: border-color 0.2s; }
+        .gdpr-reject:hover { border-color: var(--text-secondary); }
+        .gdpr-detail { margin-bottom: 20px; }
+        .gdpr-detail summary { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); cursor: pointer; font-weight: 600; margin-bottom: 10px; }
+        .gdpr-toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-color); font-size: 13px; color: var(--text-primary); }
+        .gdpr-toggle-row:last-child { border-bottom: none; }
+        .gdpr-badge { font-size: 10px; color: var(--text-secondary); letter-spacing: 1px; }
+        .gdpr-switch { width: 44px; height: 26px; background: var(--border-color); border-radius: 13px; position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; border: none; }
+        .gdpr-switch.on { background: var(--4fin-malinova); }
+        .gdpr-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left 0.2s; }
+        .gdpr-switch.on::after { left: 21px; }
+
+        /* --- RATE LIMIT --- */
+        .rate-limit-msg { display: none; background: rgba(177,0,77,0.1); border: 1px solid rgba(177,0,77,0.3); border-radius: 10px; padding: 14px 16px; margin: 0 0 20px 0; font-size: 13px; color: var(--4fin-malinova); text-align: center; font-weight: 500; }
+        .rate-limit-msg.visible { display: block; }
+
+        /* --- BENEFITS FILTER --- */
+        .benefits-search-wrap { padding: 0 20px 16px; }
+        .benefits-search-box { display: flex; align-items: center; gap: 10px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 14px; padding: 13px 16px; box-shadow: var(--shadow); transition: border-color 0.2s; }
+        .benefits-search-box:focus-within { border-color: var(--4fin-malinova); }
+        .benefits-search-box svg { color: var(--text-secondary); flex-shrink: 0; }
+        .benefits-search-box input { flex: 1; background: none; border: none; outline: none; color: var(--text-primary); font-size: 15px; font-family: 'Inter', sans-serif; }
+        .benefits-search-box input::placeholder { color: var(--text-secondary); }
+        #benefits-search-clear { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 14px; padding: 0; line-height: 1; }
+
+        .benefits-cats { display: flex; gap: 8px; overflow-x: auto; padding: 0 20px 20px; scrollbar-width: none; }
+        .benefits-cats::-webkit-scrollbar { display: none; }
+        .bcat-btn { background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 10px 16px; border-radius: 20px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; cursor: pointer; transition: all 0.2s; font-family: 'Inter', sans-serif; box-shadow: var(--shadow); }
+        .bcat-btn.active { background: var(--4fin-malinova); color: #fff; border-color: var(--4fin-malinova); font-weight: 600; }
+
         /* --- KARTA --- */
         .card-container { padding: 100px 20px 20px; perspective: 1000px;}
-        .virtual-card { background: linear-gradient(145deg, #1A1A1A 0%, #050505 100%); border: 1px solid rgba(255,255,255,0.1); padding: 35px 30px; box-shadow: 0 30px 60px rgba(0,0,0,0.25); position: relative; overflow: hidden; margin-bottom: 40px; aspect-ratio: 1.586; display: flex; flex-direction: column; justify-content: space-between; border-radius: 16px; transition: background 0.5s ease, border-color 0.5s ease, color 0.5s ease; color: #ffffff; }
+        .virtual-card { background: linear-gradient(145deg, #1A1A1A 0%, #050505 100%); border: 1px solid rgba(255,255,255,0.1); padding: 30px 28px 22px; box-shadow: 0 30px 60px rgba(0,0,0,0.25); position: relative; overflow: hidden; margin-bottom: 30px; aspect-ratio: 1.586; display: flex; flex-direction: column; justify-content: space-between; border-radius: 20px; transition: background 0.5s ease, border-color 0.5s ease, color 0.5s ease; color: #ffffff; }
         .virtual-card::after { content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%; background: linear-gradient(to right, transparent, rgba(255,255,255,0.08), transparent); transform: skewX(-25deg); animation: shine 7s infinite; pointer-events: none; }
         @keyframes shine { 0% { left: -100%; } 20% { left: 200%; } 100% { left: 200%; } }
         .vc-top { display: flex; justify-content: space-between; align-items: flex-start;}
@@ -235,10 +365,19 @@
         .vc-type { font-size: 10px; opacity: 0.8; text-transform: uppercase; letter-spacing: 4px; font-weight: 600;}
         .vc-bottom { display: flex; align-items: flex-end; }
         .vc-photo { width: 55px; height: 55px; object-fit: cover; margin-right: 20px; filter: grayscale(100%); border: 1px solid rgba(255,255,255,0.3); border-radius: 8px;}
-        .vc-name { font-size: 22px; font-family: 'Inter', sans-serif; font-weight: 400; margin: 0 0 5px 0; text-transform: uppercase; letter-spacing: 2px;}
+        .vc-name { font-size: 20px; font-family: 'Inter', sans-serif; font-weight: 400; margin: 0 0 5px 0; text-transform: uppercase; letter-spacing: 2px;}
         .vc-subtitle { font-size: 9px; color: var(--4fin-malinova); text-transform: uppercase; letter-spacing: 2px; margin: 0; font-weight: 600;}
-        
-        .customization-box { text-align: center; margin-bottom: 40px; padding: 25px; border-radius: 16px; background: var(--bg-surface); border: 1px solid var(--border-color); box-shadow: var(--shadow);}
+        .vc-card-number { font-size: 11px; letter-spacing: 3px; opacity: 0.35; font-family: 'Inter', sans-serif; font-weight: 300; text-align: right; }
+
+        /* --- QR KÓD --- */
+        .qr-section { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 20px; padding: 28px 20px 22px; text-align: center; margin-bottom: 20px; box-shadow: var(--shadow); }
+        .qr-hint { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-secondary); margin-bottom: 22px; font-weight: 600; }
+        #qr-code-box { display: inline-block; background: #fff; padding: 14px; border-radius: 14px; margin-bottom: 18px; }
+        #qr-code-box img, #qr-code-box canvas { display: block; border-radius: 6px; }
+        .qr-fullscreen-btn { display: inline-flex; align-items: center; gap: 8px; background: none; border: 1px solid var(--border-color); color: var(--text-primary); padding: 12px 22px; border-radius: 12px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; transition: border-color 0.2s, color 0.2s; letter-spacing: 0.5px; }
+        .qr-fullscreen-btn:hover { border-color: var(--4fin-malinova); color: var(--4fin-malinova); }
+
+        .customization-box { text-align: center; margin-bottom: 20px; padding: 25px; border-radius: 16px; background: var(--bg-surface); border: 1px solid var(--border-color); box-shadow: var(--shadow);}
         .custom-title { font-size: 11px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 2px; margin-bottom: 20px; font-weight: 600;}
         .color-options { display: flex; justify-content: center; gap: 20px; }
         .color-btn { width: 40px; height: 40px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
@@ -291,7 +430,8 @@
                 </div>
             </div>
         </div>
-        <button class="primary-btn" onclick="registerClient()">Odemknout aplikaci</button>
+        <div id="rate-limit-msg" class="rate-limit-msg"></div>
+        <button class="primary-btn" id="register-btn" onclick="registerClient()">Odemknout aplikaci</button>
     </div>
 
     <div id="screen-presentation" class="screen">
@@ -320,131 +460,31 @@
             <div class="mc-left"><div class="mc-icon">💳</div><div class="mc-text"><h4>Vaše Karta</h4><p>Zobrazit k uplatnění slev</p></div></div><div class="mc-arrow">→</div>
         </div>
 
-        <div class="section-heading">Katalog výhod</div>
-        <div class="partner-list">
+        <!-- Search + Filter -->
+        <div class="benefits-search-wrap">
+            <div class="benefits-search-box">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="benefits-search" placeholder="Hledat partnera…" oninput="filterBenefits()" autocomplete="off">
+                <button id="benefits-search-clear" onclick="clearBenefitsSearch()" style="display:none;">✕</button>
+            </div>
+        </div>
+        <div class="benefits-cats" id="benefits-cats">
+            <button class="bcat-btn active" data-cat="vse" onclick="selectBenefitCat(this)">Vše</button>
+            <button class="bcat-btn" data-cat="zdravi" onclick="selectBenefitCat(this)">💚 Zdraví</button>
+            <button class="bcat-btn" data-cat="gastro" onclick="selectBenefitCat(this)">🍽️ Gastronomie</button>
+            <button class="bcat-btn" data-cat="pece" onclick="selectBenefitCat(this)">💈 Péče</button>
+            <button class="bcat-btn" data-cat="sport" onclick="selectBenefitCat(this)">🏋️ Sport</button>
+            <button class="bcat-btn" data-cat="lifestyle" onclick="selectBenefitCat(this)">✨ Lifestyle</button>
+            <button class="bcat-btn" data-cat="moda" onclick="selectBenefitCat(this)">👔 Móda</button>
+            <button class="bcat-btn" data-cat="foto" onclick="selectBenefitCat(this)">📸 Foto & Kreativa</button>
+            <button class="bcat-btn" data-cat="vzdelavani" onclick="selectBenefitCat(this)">📚 Vzdělávání</button>
+            <button class="bcat-btn" data-cat="automoto" onclick="selectBenefitCat(this)">🚗 Auto & Moto</button>
+        </div>
+        <div id="benefits-empty" style="display:none; text-align:center; padding:40px 20px; color:var(--text-secondary); font-size:13px; letter-spacing:1px; text-transform:uppercase;">Žádný partner nenalezen</div>
+
+        <div class="section-heading" id="benefits-section-heading">Katalog výhod</div>
+        <div class="partner-list" id="partner-list-container">
             
-            <div class="partner-item" onclick="openDetail('ww')">
-                <div class="partner-logo"><img src="https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://watchwizards.cz&size=128" alt="Watch Wizards"></div>
-                <div class="partner-info"><h3>Watch Wizards</h3><p>Haute Horlogerie</p></div>
-                <div class="partner-arrow">→</div>
-                <div id="data-ww" class="hidden-data">
-                    <div class="data-logo">https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://watchwizards.cz&size=128</div>
-                    <div class="data-title">Watch Wizards</div>
-                    <div class="data-address">E-shop</div>
-                    <div class="data-reviews-link">https://www.google.com/search?q=Watch+Wizards+recenze</div>
-                    <div class="data-desc">
-                        <p><strong>O nás - Příběh Watch Wizards</strong><br>Jsme Watch Wizards – značka, která vytváří a upravuje hodinky tak, aby se z nich staly jedinečné kousky s charakterem. Specializujeme se na Seiko Mod hodinky – modely osazené kvalitním a ověřeným strojkem Seiko, které od základu ručně skládáme z pečlivě vybraných dílů. Zároveň upravujeme nesmrtelné modely G-Shock do podoby ikonických Casioak a Casilus, které kombinují legendární odolnost s výrazným designem.</p>
-                        <p>Každý kus ručně sestavujeme v České republice s maximální precizností a důrazem na detail. Hodinky nejsou jen naším produktem, ale především naší vášní, což se odráží v každém dokončeném modelu.</p>
-                        <p><strong>Hotové modely & zakázková výroba</strong><br>Vytváříme stálé modely, které odrážejí náš rukopis – kombinaci originality, funkčnosti a kvalitního zpracování. Zároveň nabízíme custom úpravy na míru, díky kterým si můžete hodinky přizpůsobit přesně podle svého stylu.</p>
-                        <p><strong>Naše mise</strong><br>Naším cílem je propojit styl, funkčnost a originalitu, aby každý, kdo si vybere hodinky od Watch Wizards, nosil na zápěstí něco skutečně výjimečného.</p>
-                        <p><strong>Proč si vybrat Watch Wizards?</strong><br>• Kvalita: Používáme pouze ověřené strojky a dbáme na precizní zpracování.<br>• Originalita: Každý model je výsledkem pečlivých úprav, prováděných ručně v Čechách.<br>• Spokojenost: Vaše radost z hodinek je pro nás prioritou.</p>
-                    </div>
-                    <div class="data-benefit">
-                        <ul style="margin: 0; padding-left: 18px; font-family: 'Inter', sans-serif; font-size: 14px; color: var(--text-primary); font-weight: 300;">
-                            <li><strong style="color: var(--4fin-malinova); font-weight: 600;">12 % sleva</strong> na celkový nákup</li>
-                        </ul>
-                    </div>
-                    <div class="data-proof">Zadání promo kódu: <strong>4FIN12</strong> v košíku</div>
-                    <div class="data-link">https://watchwizards.cz/vsechny-hodinky?store-page-zORfvw=8</div><div class="data-link-text">Vstoupit do butiku</div>
-                    <div class="data-invert">0</div>
-                </div>
-            </div>
-
-            <div class="partner-item" onclick="openDetail('nt')">
-                <div class="partner-logo"><img src="https://img.icons8.com/ios/100/000000/salad--v1.png" style="width: 50%;" class="invert-icon" alt="Nutriční terapie"></div>
-                <div class="partner-info"><h3>Nutriční Terapie</h3><p>Zdraví a Výkon</p></div>
-                <div class="partner-arrow">→</div>
-                <div id="data-nt" class="hidden-data">
-                    <div class="data-logo">https://img.icons8.com/ios/100/000000/salad--v1.png</div>
-                    <div class="data-title">Nutriční Terapie</div>
-                    <div class="data-address">Osobní konzultace / Online / Do firmy</div>
-                    <div class="data-reviews-link"></div>
-                    <div class="data-desc">
-                        <p>Zdraví, dlouhověkost a vysoký výkon (ať už v byznysu nebo ve sportu) začínají na talíři. Naše nutriční péče je postavena na moderních vědeckých poznatcích a individuálním přístupu ke každému klientovi.</p>
-                        <p>Nabízíme jak osobní poradenství a sestavování rámcových jídelníčků, tak ucelené vzdělávací programy a přednášky pro firmy, které chtějí investovat do zdraví a vitality svých zaměstnanců.</p>
-                    </div>
-                    <div class="data-benefit">
-                        <ul style="margin: 0; padding-left: 18px; font-family: 'Inter', sans-serif; font-size: 14px; color: var(--text-primary); font-weight: 300;">
-                            <li style="margin-bottom: 8px;"><strong style="color: var(--4fin-malinova); font-weight: 600;">20 % sleva</strong> na první přednášku do firem</li>
-                            <li style="margin-bottom: 8px;"><strong style="color: var(--4fin-malinova); font-weight: 600;">10 % sleva</strong> na navazující firemní přednášky</li>
-                            <li style="margin-bottom: 8px;"><strong style="color: var(--4fin-malinova); font-weight: 600;">10 % sleva</strong> na dlouhodobou spolupráci se sportovci</li>
-                            <li style="margin-bottom: 8px;"><strong style="color: var(--4fin-malinova); font-weight: 600;">10 % sleva</strong> na tvorbu rámcového jídelníčku</li>
-                            <li><strong style="color: var(--4fin-malinova); font-weight: 600;">7 % sleva</strong> na dlouhodobou spolupráci (bez zaměření na sport)</li>
-                        </ul>
-                    </div>
-                    <div class="data-proof">Předložení klientské karty 4fin (z aplikace) na úvodní konzultaci.</div>
-                    <div class="data-link"></div><div class="data-link-text"></div>
-                    <div class="data-invert">1</div>
-                </div>
-            </div>
-
-            <div class="partner-item" onclick="openDetail('bb')">
-                <div class="partner-logo"><img src="https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://www.brainbooost.cz&size=128" alt="Brainboost"></div>
-                <div class="partner-info"><h3>Brainboost</h3><p>Biohacking & Výkon</p></div>
-                <div class="partner-arrow">→</div>
-                <div id="data-bb" class="hidden-data">
-                    <div class="data-logo">https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://www.brainbooost.cz&size=128</div>
-                    <div class="data-title">Brainboost</div>
-                    <div class="data-address">Online / Vybrané pobočky</div>
-                    <div class="data-reviews-link">https://www.google.com/search?q=Brainboost+recenze</div>
-                    <div class="data-desc">
-                        <p><strong>Vítejte na BrainBooost – místě, kde najdete zdravou energii pro každý den!</strong></p>
-                        <p>Hledáte způsob, jak se zbavit prokrastinace a získat více energie, aniž byste sáhli po klasických energetických nápojích plných cukru a chemikálií? U nás najdete přesně to, co potřebujete!</p>
-                        <p>Nabízíme energetizující prášky, které vás povzbudí, pomohou vám se soustředit a zároveň jsou plné přírodních ingrediencí. Naše produkty (jako BrainBooost malina) vás dostanou do tempa a podpoří vaši produktivitu bez negativních účinků.</p>
-                        <p>Pro naše zákazníky máme připravené i nové příchutě, které uvedeme na trh od nového roku! Sledujte nás na Instagramu a TikToku, kde se můžete těšit na soutěže a akce.</p>
-                        <p>Přidejte se k nám a objevte zdravější alternativu energetických nápojů.</p>
-                    </div>
-                    <div class="data-benefit">
-                        <ul style="margin: 0; padding-left: 18px; font-family: 'Inter', sans-serif; font-size: 14px; color: var(--text-primary); font-weight: 300;">
-                            <li><strong style="color: var(--4fin-malinova); font-weight: 600;">VIP ceny</strong> na kompletní sortiment</li>
-                        </ul>
-                    </div>
-                    <div class="data-proof">Předložení klientské karty v mobilu</div>
-                    <div class="data-link">https://www.brainbooost.cz/</div><div class="data-link-text">Objevte nabídku</div>
-                    <div class="data-invert">0</div>
-                </div>
-            </div>
-
-            <div class="partner-item" onclick="openDetail('cb')">
-                <div class="partner-logo"><img src="https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://www.championsbarber.cz&size=128" alt="Champions Barber"></div>
-                <div class="partner-info"><h3>Champions Barber</h3><p>Péče pro gentlemany</p></div>
-                <div class="partner-arrow">→</div>
-                <div id="data-cb" class="hidden-data">
-                    <div class="data-logo">https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://www.championsbarber.cz&size=128</div>
-                    <div class="data-title">Champions Barber</div>
-                    <div class="data-address">Opletalova 25, Praha 1</div>
-                    <div class="data-reviews-link">https://www.google.com/search?q=Champions+Barber+Praha+recenze</div>
-                    <div class="data-desc"><p>Zažijte dokonalou péči v prémiovém prostředí. Precizní střih, úprava vousů klasickou břitvou, výběrová káva a chvíle naprostého klidu.</p></div>
-                    <div class="data-benefit">
-                        <ul style="margin: 0; padding-left: 18px; font-family: 'Inter', sans-serif; font-size: 14px; color: var(--text-primary); font-weight: 300;">
-                            <li><strong style="color: var(--4fin-malinova); font-weight: 600;">Zvýhodnění 15 %</strong> na veškeré služby</li>
-                        </ul>
-                    </div>
-                    <div class="data-proof">Předložení klientské karty po ostříhání</div>
-                    <div class="data-link">https://www.championsbarber.cz/</div><div class="data-link-text">Rezervovat péči</div>
-                    <div class="data-invert">0</div>
-                </div>
-            </div>
-
-            <div class="partner-item" onclick="openDetail('fa')">
-                <div class="partner-logo"><img src="https://img.icons8.com/ios/100/000000/camera--v1.png" style="width: 50%;" class="invert-icon" alt="Fotograf"></div>
-                <div class="partner-info"><h3>Fine Art Focení</h3><p>Profesionální portréty</p></div>
-                <div class="partner-arrow">→</div>
-                <div id="data-fa" class="hidden-data">
-                    <div class="data-logo">https://img.icons8.com/ios/100/000000/camera--v1.png</div>
-                    <div class="data-title">Fine Art Focení</div>
-                    <div class="data-address">Vlastní ateliér / Exteriér</div><div class="data-reviews-link"></div>
-                    <div class="data-desc"><p>Zvěčněte svou rodinu nebo posuňte svou osobní značku na novou úroveň díky špičkovým fotografiím. Služba zahrnuje prémiový styling a profesionální fine-art retuš.</p></div>
-                    <div class="data-benefit">
-                        <ul style="margin: 0; padding-left: 18px; font-family: 'Inter', sans-serif; font-size: 14px; color: var(--text-primary); font-weight: 300;">
-                            <li><strong style="color: var(--4fin-malinova); font-weight: 600;">+ 5 profi retuší zdarma</strong> nad rámec balíčku</li>
-                        </ul>
-                    </div>
-                    <div class="data-proof">Předložení klientské karty při focení</div>
-                    <div class="data-link"></div><div class="data-link-text"></div>
-                    <div class="data-invert">1</div>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -554,12 +594,30 @@
         <button class="back-btn-top" onclick="switchTab('tab-benefity')">←</button>
         <div class="card-container">
             <div id="my-virtual-card" class="virtual-card">
-                <div class="vc-top"><div class="vc-logo" id="vc-logo-text">4fin</div><div class="vc-type" id="vc-type-text">Klient</div></div>
+                <div class="vc-top">
+                    <div class="vc-logo" id="vc-logo-text">4fin</div>
+                    <div class="vc-type" id="vc-type-text">Klient</div>
+                </div>
                 <div class="vc-bottom">
                     <img id="final-card-photo" src="" alt="Foto" class="vc-photo">
-                    <div><h3 id="final-card-name" class="vc-name">Jméno</h3><p class="vc-subtitle">Klientský program</p></div>
+                    <div>
+                        <h3 id="final-card-name" class="vc-name">Jméno</h3>
+                        <p class="vc-subtitle">Klientský program</p>
+                    </div>
                 </div>
+                <div class="vc-card-number" id="vc-card-number">4FIN · ···· · ····</div>
             </div>
+
+            <!-- QR sekce -->
+            <div class="qr-section">
+                <div class="qr-hint">Ukažte QR kód obsluze pro ověření členství</div>
+                <div id="qr-code-box"></div>
+                <button class="qr-fullscreen-btn" onclick="showQRFullscreen()">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                    Zobrazit na celou obrazovku
+                </button>
+            </div>
+
             <div class="customization-box">
                 <div class="custom-title">Povrchová úprava karty</div>
                 <div class="color-options">
@@ -568,8 +626,82 @@
                     <div class="color-btn color-signature" onclick="setCardTheme('signature', this)"></div>
                 </div>
             </div>
-            <button class="primary-btn" style="margin: 30px auto 0; width: 100%; box-shadow:none;" onclick="switchTab('tab-benefity')">Zpět do katalogu</button>
+
+            <!-- Install hint -->
+            <div class="install-banner" id="install-banner">
+                <div class="install-banner-icon">📲</div>
+                <div class="install-banner-text">
+                    <strong>Přidat na plochu</strong>
+                    <span>Mějte kartu vždy po ruce jako appku</span>
+                </div>
+                <button class="install-banner-btn" id="install-btn" onclick="triggerInstall()">Přidat</button>
+                <button class="install-banner-close" onclick="dismissInstall()">✕</button>
+            </div>
+
+            <button class="primary-btn" style="margin: 20px auto 0; width: 100%; box-shadow:none;" onclick="switchTab('tab-benefity')">Zpět do katalogu</button>
         </div>
+    </div>
+
+    <!-- GDPR Consent Modal -->
+    <div id="gdpr-overlay" class="gdpr-overlay" style="display:none;">
+        <div class="gdpr-box">
+            <h2 class="gdpr-title">Soukromí a cookies</h2>
+            <p class="gdpr-text">Používáme analytické cookies (Google Analytics) ke zlepšení aplikace. Vaše osobní údaje (jméno, fotografie) jsou uloženy <strong>výhradně ve vašem zařízení</strong> a nikam se neposílají. Více v <a href="#" onclick="return false;">Zásadách ochrany soukromí</a>.</p>
+
+            <details class="gdpr-detail">
+                <summary>Podrobné nastavení</summary>
+                <div style="padding-top:10px;">
+                    <div class="gdpr-toggle-row">
+                        <div>
+                            <div>Nezbytné cookies</div>
+                            <div class="gdpr-badge">VŽDY AKTIVNÍ</div>
+                        </div>
+                        <button class="gdpr-switch on" style="cursor:default;" disabled></button>
+                    </div>
+                    <div class="gdpr-toggle-row">
+                        <div>
+                            <div>Analytické cookies</div>
+                            <div class="gdpr-badge">GOOGLE ANALYTICS</div>
+                        </div>
+                        <button class="gdpr-switch" id="analytics-toggle" onclick="this.classList.toggle('on')"></button>
+                    </div>
+                </div>
+            </details>
+
+            <div class="gdpr-btns">
+                <button class="gdpr-accept" onclick="gdprAccept(true)">Přijmout vše</button>
+                <button class="gdpr-reject" onclick="gdprAccept(false)">Pokračovat bez analytiky</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spodní navigace -->
+    <div id="bottom-navigation" class="bottom-nav">
+        <div class="nav-item active" id="nav-benefity" onclick="switchTab('tab-benefity')">
+            <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span>Výhody</span>
+        </div>
+        <div class="nav-item" id="nav-tipy" onclick="switchTab('tab-tipy')">
+            <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            <span>Insights</span>
+        </div>
+        <div class="nav-item" id="nav-doporuceni" onclick="switchTab('tab-doporuceni')">
+            <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Doporučit</span>
+        </div>
+        <div class="nav-item" id="nav-poradce" onclick="switchTab('tab-poradce')">
+            <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>Poradce</span>
+        </div>
+    </div>
+
+    <!-- QR Fullscreen overlay -->
+    <div id="qr-overlay" onclick="hideQRFullscreen()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.97); z-index:9999; flex-direction:column; align-items:center; justify-content:center; padding:30px; cursor:pointer;">
+        <div style="color:rgba(255,255,255,0.4); font-size:11px; text-transform:uppercase; letter-spacing:2px; margin-bottom:30px;">Klepněte pro zavření</div>
+        <div id="qr-code-fullscreen" style="background:#fff; padding:20px; border-radius:20px;"></div>
+        <div id="qr-name-fullscreen" style="color:#fff; font-family:'Playfair Display', serif; font-size:24px; margin-top:25px; font-weight:500;"></div>
+        <div id="qr-number-fullscreen" style="color:rgba(255,255,255,0.4); font-size:13px; margin-top:8px; letter-spacing:2px;"></div>
+        <div style="color:rgba(255,255,255,0.3); font-size:11px; text-transform:uppercase; letter-spacing:2px; margin-top:30px;">4fin Klientský program</div>
     </div>
 
 </div>
@@ -609,6 +741,357 @@
     const imgCorp = "https://images.unsplash.com/photo-1520607162513-aa06603cb1bd?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80";
     const imgFarm = "https://images.unsplash.com/photo-1500382017468-9049fed747ef?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80";
     const imgWatch = "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80";
+
+    // ============================================================
+    // BEZPEČNOST & GDPR
+    // ============================================================
+
+    // --- SANITIZACE VSTUPŮ (ochrana před XSS) ---
+    function sanitize(str) {
+        const div = document.createElement('div');
+        div.appendChild(document.createTextNode(String(str)));
+        return div.innerHTML;
+    }
+
+    // --- GDPR & ANALYTICS ---
+    function initAnalytics() {
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = 'https://www.googletagmanager.com/gtag/js?id=G-CG9D3L70JB';
+        document.head.appendChild(script);
+        script.onload = () => {
+            window.dataLayer = window.dataLayer || [];
+            window.gtag = function(){ dataLayer.push(arguments); };
+            gtag('js', new Date());
+            gtag('config', 'G-CG9D3L70JB', { anonymize_ip: true });
+        };
+    }
+
+    function gdprAccept(acceptAnalytics) {
+        const analyticsToggle = document.getElementById('analytics-toggle');
+        const analyticsOn = acceptAnalytics || (analyticsToggle && analyticsToggle.classList.contains('on'));
+        const consent = { necessary: true, analytics: analyticsOn, timestamp: Date.now() };
+        try { localStorage.setItem('4fin_gdpr', JSON.stringify(consent)); } catch(e) {}
+        document.getElementById('gdpr-overlay').style.display = 'none';
+        if (analyticsOn) initAnalytics();
+        // Povol zbývající funkce appky
+        appInit();
+    }
+
+    function checkGdprConsent() {
+        try {
+            const raw = localStorage.getItem('4fin_gdpr');
+            if (!raw) return null;
+            const c = JSON.parse(raw);
+            // Souhlas platí 1 rok
+            if (Date.now() - c.timestamp > 365 * 24 * 60 * 60 * 1000) {
+                localStorage.removeItem('4fin_gdpr'); return null;
+            }
+            return c;
+        } catch(e) { return null; }
+    }
+
+    // --- RATE LIMITING (ochrana proti brute-force kódů) ---
+    const RATE_LIMIT_MAX = 5;       // max pokusů
+    const RATE_LIMIT_WINDOW = 300;  // sekund (5 minut)
+
+    function getRateLimit() {
+        try {
+            const raw = localStorage.getItem('4fin_ratelimit');
+            return raw ? JSON.parse(raw) : { attempts: 0, since: Date.now() };
+        } catch(e) { return { attempts: 0, since: Date.now() }; }
+    }
+
+    function isRateLimited() {
+        const rl = getRateLimit();
+        const elapsed = (Date.now() - rl.since) / 1000;
+        if (elapsed > RATE_LIMIT_WINDOW) {
+            // Reset po uplynutí okna
+            saveRateLimit({ attempts: 0, since: Date.now() });
+            return false;
+        }
+        return rl.attempts >= RATE_LIMIT_MAX;
+    }
+
+    function recordFailedAttempt() {
+        const rl = getRateLimit();
+        const elapsed = (Date.now() - rl.since) / 1000;
+        if (elapsed > RATE_LIMIT_WINDOW) {
+            saveRateLimit({ attempts: 1, since: Date.now() });
+        } else {
+            saveRateLimit({ attempts: rl.attempts + 1, since: rl.since });
+        }
+    }
+
+    function saveRateLimit(data) {
+        try { localStorage.setItem('4fin_ratelimit', JSON.stringify(data)); } catch(e) {}
+    }
+
+    function getRateLimitRemaining() {
+        const rl = getRateLimit();
+        const elapsed = (Date.now() - rl.since) / 1000;
+        const remaining = Math.ceil(RATE_LIMIT_WINDOW - elapsed);
+        return Math.max(0, remaining);
+    }
+
+    function showRateLimitMsg(seconds) {
+        const min = Math.ceil(seconds / 60);
+        const el = document.getElementById('rate-limit-msg');
+        if (!el) return;
+        el.textContent = `Příliš mnoho neúspěšných pokusů. Zkuste to znovu za ${min} ${min === 1 ? 'minutu' : 'minuty'}.`;
+        el.classList.add('visible');
+        document.getElementById('register-btn').disabled = true;
+        // Aktualizuj odpočet každých 10 sekund
+        const interval = setInterval(() => {
+            const rem = getRateLimitRemaining();
+            if (rem <= 0) {
+                el.classList.remove('visible');
+                document.getElementById('register-btn').disabled = false;
+                clearInterval(interval);
+            } else {
+                const m = Math.ceil(rem / 60);
+                el.textContent = `Příliš mnoho neúspěšných pokusů. Zkuste to znovu za ${m} ${m === 1 ? 'minutu' : 'minuty'}.`;
+            }
+        }, 10000);
+    }
+
+    // --- SESSION PERSISTENCE ---
+    const SESSION_KEY = '4fin_session';
+    const SESSION_TTL = 30 * 24 * 60 * 60 * 1000; // 30 dní
+
+    function saveSession(name, advisorKey, cardNum, photoDataUrl) {
+        try {
+            const session = { name, advisorKey, cardNum, timestamp: Date.now() };
+            // Foto: zkomprimuj na max 120x120 před uložením
+            if (photoDataUrl) {
+                compressPhoto(photoDataUrl, 120, (compressed) => {
+                    session.photo = compressed;
+                    try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch(e) {
+                        // Pokud je localStorage plný, ulož bez fotra
+                        delete session.photo;
+                        try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch(e2) {}
+                    }
+                });
+            } else {
+                localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+            }
+        } catch(e) {}
+    }
+
+    function loadSession() {
+        try {
+            const raw = localStorage.getItem(SESSION_KEY);
+            if (!raw) return null;
+            const s = JSON.parse(raw);
+            if (Date.now() - s.timestamp > SESSION_TTL) {
+                localStorage.removeItem(SESSION_KEY); return null;
+            }
+            return s;
+        } catch(e) { return null; }
+    }
+
+    function clearSession() {
+        try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+    }
+
+    function compressPhoto(dataUrl, maxSize, callback) {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            callback(canvas.toDataURL('image/jpeg', 0.75));
+        };
+        img.onerror = () => callback(null);
+        img.src = dataUrl;
+    }
+
+    function restoreSession(session) {
+        clientNameData = session.name;
+        const cardNum = session.cardNum || generateCardNumber(session.name);
+
+        document.getElementById('final-card-name').innerText = session.name;
+        document.getElementById('vc-card-number').innerText = cardNum;
+
+        if (session.photo) {
+            document.getElementById('final-card-photo').src = session.photo;
+            hasPhoto = true;
+        }
+
+        selectedAdvisorData = teamAdvisors[session.advisorKey];
+        if (selectedAdvisorData) {
+            document.getElementById('profile-adv-name').innerText = selectedAdvisorData.name;
+            document.getElementById('profile-adv-photo').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedAdvisorData.name)}&background=B1004D&color=fff&size=200`;
+            document.getElementById('profile-adv-phone').href = "tel:" + selectedAdvisorData.phone;
+            document.getElementById('profile-adv-email').href = "mailto:" + selectedAdvisorData.email;
+            const calBtn = document.getElementById('profile-adv-calendar');
+            if (selectedAdvisorData.calendar) { calBtn.style.display = "block"; calBtn.href = selectedAdvisorData.calendar; }
+            else { calBtn.style.display = "none"; }
+        }
+
+        setTimeout(() => generateQR(session.name, cardNum), 400);
+        setGreeting();
+        switchTab('tab-benefity', true);
+    }
+
+    // --- HLAVNÍ INIT (voláno po GDPR souhlasu) ---
+    function appInit() {
+        renderPartners();
+        filterArticles('all');
+        fetch4finArticles();
+
+        const session = loadSession();
+        if (session) {
+            restoreSession(session);
+        }
+        // Zkontroluj rate limit při načtení
+        if (isRateLimited()) {
+            showRateLimitMsg(getRateLimitRemaining());
+        }
+    }
+
+    // ============================================================
+    // DATABÁZE PARTNERŮ
+    // ============================================================
+    // Přidej nové partnery sem. Kategorie: zdravi, gastro, pece, sport, lifestyle, moda, foto, vzdelavani, automoto
+    const partnersData = [
+        {
+            id: "ww", category: "lifestyle", name: "Watch Wizards", subtitle: "Haute Horlogerie",
+            logo: "https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://watchwizards.cz&size=128",
+            address: "E-shop", reviewsLink: "https://www.google.com/search?q=Watch+Wizards+recenze",
+            desc: `<p><strong>O nás - Příběh Watch Wizards</strong><br>Jsme Watch Wizards – značka, která vytváří a upravuje hodinky tak, aby se z nich staly jedinečné kousky s charakterem. Specializujeme se na Seiko Mod hodinky – modely osazené kvalitním a ověřeným strojkem Seiko, které od základu ručně skládáme z pečlivě vybraných dílů. Zároveň upravujeme nesmrtelné modely G-Shock do podoby ikonických Casioak a Casilus, které kombinují legendární odolnost s výrazným designem.</p><p>Každý kus ručně sestavujeme v České republice s maximální precizností a důrazem na detail.</p><p><strong>Hotové modely & zakázková výroba</strong><br>Vytváříme stálé modely, které odrážejí náš rukopis. Zároveň nabízíme custom úpravy na míru.</p>`,
+            benefitHtml: `<ul style="margin:0;padding-left:18px;font-family:'Inter',sans-serif;font-size:14px;color:var(--text-primary);font-weight:300;"><li><strong style="color:var(--4fin-malinova);font-weight:600;">12 % sleva</strong> na celkový nákup</li></ul>`,
+            proof: `Zadání promo kódu: <strong>4FIN12</strong> v košíku`,
+            link: "https://watchwizards.cz/vsechny-hodinky?store-page-zORfvw=8", linkText: "Vstoupit do butiku",
+            invertLogo: false
+        },
+        {
+            id: "nt", category: "zdravi", name: "Nutriční Terapie", subtitle: "Zdraví a Výkon",
+            logo: "https://img.icons8.com/ios/100/000000/salad--v1.png",
+            address: "Osobní konzultace / Online / Do firmy", reviewsLink: "",
+            desc: `<p>Zdraví, dlouhověkost a vysoký výkon začínají na talíři. Naše nutriční péče je postavena na moderních vědeckých poznatcích a individuálním přístupu ke každému klientovi.</p><p>Nabízíme jak osobní poradenství a sestavování rámcových jídelníčků, tak ucelené vzdělávací programy a přednášky pro firmy.</p>`,
+            benefitHtml: `<ul style="margin:0;padding-left:18px;font-family:'Inter',sans-serif;font-size:14px;color:var(--text-primary);font-weight:300;"><li style="margin-bottom:8px;"><strong style="color:var(--4fin-malinova);font-weight:600;">20 % sleva</strong> na první přednášku do firem</li><li style="margin-bottom:8px;"><strong style="color:var(--4fin-malinova);font-weight:600;">10 % sleva</strong> na navazující firemní přednášky</li><li style="margin-bottom:8px;"><strong style="color:var(--4fin-malinova);font-weight:600;">10 % sleva</strong> na tvorbu rámcového jídelníčku</li><li><strong style="color:var(--4fin-malinova);font-weight:600;">7 % sleva</strong> na dlouhodobou spolupráci</li></ul>`,
+            proof: "Předložení klientské karty 4fin (z aplikace) na úvodní konzultaci.",
+            link: "", linkText: "",
+            invertLogo: true
+        },
+        {
+            id: "bb", category: "zdravi", name: "Brainboost", subtitle: "Biohacking & Výkon",
+            logo: "https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://www.brainbooost.cz&size=128",
+            address: "Online / Vybrané pobočky", reviewsLink: "https://www.google.com/search?q=Brainboost+recenze",
+            desc: `<p><strong>Vítejte na BrainBooost – místě, kde najdete zdravou energii pro každý den!</strong></p><p>Nabízíme energetizující prášky z přírodních ingrediencí, které vás povzbudí a pomohou se soustředit bez negativních účinků klasických energetických nápojů.</p>`,
+            benefitHtml: `<ul style="margin:0;padding-left:18px;font-family:'Inter',sans-serif;font-size:14px;color:var(--text-primary);font-weight:300;"><li><strong style="color:var(--4fin-malinova);font-weight:600;">VIP ceny</strong> na kompletní sortiment</li></ul>`,
+            proof: "Předložení klientské karty v mobilu",
+            link: "https://www.brainbooost.cz/", linkText: "Objevte nabídku",
+            invertLogo: false
+        },
+        {
+            id: "cb", category: "pece", name: "Champions Barber", subtitle: "Péče pro gentlemany",
+            logo: "https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://www.championsbarber.cz&size=128",
+            address: "Opletalova 25, Praha 1", reviewsLink: "https://www.google.com/search?q=Champions+Barber+Praha+recenze",
+            desc: `<p>Zažijte dokonalou péči v prémiovém prostředí. Precizní střih, úprava vousů klasickou břitvou, výběrová káva a chvíle naprostého klidu.</p>`,
+            benefitHtml: `<ul style="margin:0;padding-left:18px;font-family:'Inter',sans-serif;font-size:14px;color:var(--text-primary);font-weight:300;"><li><strong style="color:var(--4fin-malinova);font-weight:600;">Zvýhodnění 15 %</strong> na veškeré služby</li></ul>`,
+            proof: "Předložení klientské karty po ostříhání",
+            link: "https://www.championsbarber.cz/", linkText: "Rezervovat péči",
+            invertLogo: false
+        },
+        {
+            id: "fa", category: "foto", name: "Fine Art Focení", subtitle: "Profesionální portréty",
+            logo: "https://img.icons8.com/ios/100/000000/camera--v1.png",
+            address: "Vlastní ateliér / Exteriér", reviewsLink: "",
+            desc: `<p>Zvěčněte svou rodinu nebo posuňte svou osobní značku na novou úroveň díky špičkovým fotografiím. Služba zahrnuje prémiový styling a profesionální fine-art retuš.</p>`,
+            benefitHtml: `<ul style="margin:0;padding-left:18px;font-family:'Inter',sans-serif;font-size:14px;color:var(--text-primary);font-weight:300;"><li><strong style="color:var(--4fin-malinova);font-weight:600;">+ 5 profi retuší zdarma</strong> nad rámec balíčku</li></ul>`,
+            proof: "Předložení klientské karty při focení",
+            link: "", linkText: "",
+            invertLogo: true
+        }
+    ];
+
+    // --- RENDER + FILTER PARTNERŮ ---
+    let activeBenefitCat = 'vse';
+
+    function renderPartners() {
+        const container = document.getElementById('partner-list-container');
+        const searchVal = (document.getElementById('benefits-search')?.value || '').toLowerCase().trim();
+        const empty = document.getElementById('benefits-empty');
+
+        const filtered = partnersData.filter(p => {
+            const catMatch = activeBenefitCat === 'vse' || p.category === activeBenefitCat;
+            const searchMatch = !searchVal || p.name.toLowerCase().includes(searchVal) || p.subtitle.toLowerCase().includes(searchVal);
+            return catMatch && searchMatch;
+        });
+
+        container.innerHTML = '';
+        if (filtered.length === 0) {
+            empty.style.display = 'block';
+            return;
+        }
+        empty.style.display = 'none';
+
+        filtered.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'partner-item';
+            div.onclick = () => openDetail(p.id);
+            const logoStyle = p.invertLogo ? 'width:50%;' : 'width:100%;';
+            const logoClass = p.invertLogo ? 'invert-icon' : '';
+            div.innerHTML = `
+                <div class="partner-logo"><img src="${p.logo}" alt="${p.name}" style="${logoStyle}" class="${logoClass}"></div>
+                <div class="partner-info"><h3>${p.name}</h3><p>${p.subtitle}</p></div>
+                <div class="partner-arrow">→</div>`;
+            container.appendChild(div);
+        });
+    }
+
+    function selectBenefitCat(btn) {
+        document.querySelectorAll('.bcat-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeBenefitCat = btn.getAttribute('data-cat');
+        renderPartners();
+    }
+
+    function filterBenefits() {
+        const val = document.getElementById('benefits-search').value;
+        document.getElementById('benefits-search-clear').style.display = val ? 'block' : 'none';
+        renderPartners();
+    }
+
+    function clearBenefitsSearch() {
+        document.getElementById('benefits-search').value = '';
+        document.getElementById('benefits-search-clear').style.display = 'none';
+        renderPartners();
+    }
+
+    function openDetail(partnerId) {
+        const p = partnersData.find(x => x.id === partnerId);
+        if (!p) return;
+        if(typeof gtag === 'function') gtag('event', 'zobrazeni_partnera', { 'partner_id': partnerId });
+
+        const logoImg = document.getElementById('det-logo');
+        logoImg.src = p.logo;
+        logoImg.style.width = p.invertLogo ? '50%' : '100%';
+        logoImg.className = p.invertLogo ? 'invert-icon' : '';
+
+        document.getElementById('det-title').innerText = p.name;
+        document.getElementById('det-desc').innerHTML = p.desc;
+        document.getElementById('det-benefit-value').innerHTML = p.benefitHtml;
+        document.getElementById('det-proof-value').innerHTML = p.proof;
+
+        const addrContainer = document.getElementById('det-address-container');
+        if (p.address) { addrContainer.style.display = 'flex'; document.getElementById('det-address').innerText = p.address; }
+        else { addrContainer.style.display = 'none'; }
+
+        const linkBtn = document.getElementById('det-link');
+        if (p.link) { linkBtn.style.display = 'block'; linkBtn.setAttribute('data-href', p.link); linkBtn.innerText = p.linkText; }
+        else { linkBtn.style.display = 'none'; }
+
+        const revBtn = document.getElementById('det-reviews-link');
+        if (p.reviewsLink) { revBtn.style.display = 'inline-block'; revBtn.href = p.reviewsLink; }
+        else { revBtn.style.display = 'none'; }
+
+        switchTab('screen-detail', false);
+    }
 
     const validInviteCodes = { "VIP-4FIN": true, "KOD-2026": true, "PREMIUM": true };
     const teamAdvisors = {
@@ -712,6 +1195,7 @@
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             if(document.getElementById('nav-' + tabId.split('-')[1])) document.getElementById('nav-' + tabId.split('-')[1]).classList.add('active');
         }
+        if(tabId === 'screen-wallet') showInstallBanner();
     }
 
     // --- REGISTRACE ---
@@ -732,33 +1216,84 @@
         }
     });
 
-    function registerClient() {
-        const inviteCode = document.getElementById('invite-code').value.trim().toUpperCase();
-        const errorMsg = document.getElementById('code-error');
-        const name = document.getElementById('client-name').value.trim();
+    async function registerClient() {
+        // Rate limit check
+        if (isRateLimited()) {
+            showRateLimitMsg(getRateLimitRemaining()); return;
+        }
+
+        // Sanitizace vstupů
+        const rawCode = document.getElementById('invite-code').value.trim().toUpperCase();
+        const rawName = document.getElementById('client-name').value.trim();
         const advisorKey = document.getElementById('advisor-select').value;
-        
-        if (inviteCode === "" || name === "" || !hasPhoto) { alert("Pro vstup prosím zadejte kód, údaje a nahrajte portrét."); return; }
-        
-        if (validInviteCodes[inviteCode] === true) {
-            validInviteCodes[inviteCode] = false; errorMsg.style.display = "none";
-            clientNameData = name; document.getElementById('final-card-name').innerText = name;
-            
-            selectedAdvisorData = teamAdvisors[advisorKey];
+
+        const inviteCode = rawCode.replace(/[^A-Z0-9\-]/g, '').substring(0, 30);
+        const name = sanitize(rawName).substring(0, 80);
+
+        const errorMsg = document.getElementById('code-error');
+        const submitBtn = document.getElementById('register-btn');
+
+        if (!inviteCode || !name || !hasPhoto) {
+            alert("Pro vstup prosím zadejte kód, údaje a nahrajte portrét."); return;
+        }
+        if (name.length < 2) {
+            alert("Zadejte prosím celé jméno."); return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Ověřuji kód…";
+        errorMsg.style.display = "none";
+
+        let valid = false;
+        let resolvedAdvisorKey = advisorKey;
+
+        if (window.firebaseReady && window.verifyInviteCodeFirebase) {
+            const result = await window.verifyInviteCodeFirebase(inviteCode);
+            valid = result.valid;
+            if (result.valid && result.poradce) resolvedAdvisorKey = result.poradce;
+            // Firebase chyba → fallback (jen vývojový režim)
+            if (!result.valid && result.reason === 'error') {
+                valid = validInviteCodes[inviteCode] === true;
+                if (valid) validInviteCodes[inviteCode] = false;
+            }
+        } else {
+            valid = validInviteCodes[inviteCode] === true;
+            if (valid) validInviteCodes[inviteCode] = false;
+        }
+
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Odemknout aplikaci";
+
+        if (valid) {
+            clientNameData = name;
+            document.getElementById('final-card-name').innerText = name;
+            const cardNum = generateCardNumber(name);
+            document.getElementById('vc-card-number').innerText = cardNum;
+            setTimeout(() => generateQR(name, cardNum), 300);
+
+            selectedAdvisorData = teamAdvisors[resolvedAdvisorKey] || teamAdvisors[advisorKey];
             document.getElementById('profile-adv-name').innerText = selectedAdvisorData.name;
             document.getElementById('profile-adv-photo').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedAdvisorData.name)}&background=B1004D&color=fff&size=200`;
             document.getElementById('profile-adv-phone').href = "tel:" + selectedAdvisorData.phone;
             document.getElementById('profile-adv-email').href = "mailto:" + selectedAdvisorData.email;
-            
+
             const calBtn = document.getElementById('profile-adv-calendar');
-            if(selectedAdvisorData.calendar) { calBtn.style.display = "block"; calBtn.href = selectedAdvisorData.calendar; } 
+            if (selectedAdvisorData.calendar) { calBtn.style.display = "block"; calBtn.href = selectedAdvisorData.calendar; }
             else { calBtn.style.display = "none"; }
 
-            // GA4 EVENT - Registrace
-            if(typeof gtag === 'function') gtag('event', 'registrace_klienta', { 'poradce': advisorKey });
+            // Ulož session (s komprimovaným fotem)
+            const photoSrc = document.getElementById('final-card-photo').src;
+            saveSession(name, resolvedAdvisorKey, cardNum, photoSrc.startsWith('data:') ? photoSrc : null);
 
-            setGreeting(); switchTab('screen-presentation', false);
-        } else { errorMsg.style.display = "block"; }
+            if (typeof gtag === 'function') gtag('event', 'registrace_klienta', { 'poradce': resolvedAdvisorKey });
+            setGreeting();
+            switchTab('screen-presentation', false);
+        } else {
+            // Zaznamenej neúspěšný pokus
+            recordFailedAttempt();
+            errorMsg.style.display = "block";
+            if (isRateLimited()) showRateLimitMsg(getRateLimitRemaining());
+        }
     }
 
     // --- ONBOARDING SLIDES ---
@@ -939,8 +1474,14 @@
     
     // Spuštění po načtení DOM
     window.addEventListener('DOMContentLoaded', () => {
-        filterArticles('all'); 
-        fetch4finArticles();   
+        const consent = checkGdprConsent();
+        if (consent) {
+            if (consent.analytics) initAnalytics();
+            appInit();
+        } else {
+            // Zobraz GDPR modal jako první věc
+            document.getElementById('gdpr-overlay').style.display = 'flex';
+        }
     });
 
     // --- DETAIL PARTNERA A KARTA ---
@@ -979,15 +1520,69 @@
     }
 
     function setCardTheme(theme, btnElement) {
-        // GA4 EVENT - Změna designu
         if(typeof gtag === 'function') gtag('event', 'zmena_designu_karty', {'barva': theme});
-
         document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active')); btnElement.classList.add('active');
         const card = document.getElementById('my-virtual-card'), logo = document.getElementById('vc-logo-text'), type = document.getElementById('vc-type-text'), name = document.getElementById('final-card-name');
-        if (theme === 'obsidian') { card.style.background = 'linear-gradient(145deg, #1A1A1A 0%, #050505 100%)'; card.style.borderColor = 'rgba(255,255,255,0.1)'; card.style.color = '#ffffff'; logo.style.color = '#ffffff'; name.style.color = '#ffffff'; type.style.color = 'var(--4fin-malinova)'; } 
-        else if (theme === 'platinum') { card.style.background = 'linear-gradient(145deg, #f0f0f0 0%, #BDBDBD 100%)'; card.style.borderColor = 'rgba(0,0,0,0.1)'; card.style.color = '#000000'; logo.style.color = '#000000'; name.style.color = '#000000'; type.style.color = 'var(--4fin-malinova)'; } 
+        if (theme === 'obsidian') { card.style.background = 'linear-gradient(145deg, #1A1A1A 0%, #050505 100%)'; card.style.borderColor = 'rgba(255,255,255,0.1)'; card.style.color = '#ffffff'; logo.style.color = '#ffffff'; name.style.color = '#ffffff'; type.style.color = 'var(--4fin-malinova)'; }
+        else if (theme === 'platinum') { card.style.background = 'linear-gradient(145deg, #f0f0f0 0%, #BDBDBD 100%)'; card.style.borderColor = 'rgba(0,0,0,0.1)'; card.style.color = '#000000'; logo.style.color = '#000000'; name.style.color = '#000000'; type.style.color = 'var(--4fin-malinova)'; }
         else if (theme === 'signature') { card.style.background = 'linear-gradient(145deg, #B1004D 0%, #63002b 100%)'; card.style.borderColor = 'rgba(255,255,255,0.2)'; card.style.color = '#ffffff'; logo.style.color = '#ffffff'; name.style.color = '#ffffff'; type.style.color = '#ffffff'; }
     }
+
+    // --- ČÍSLO KARTY ---
+    function generateCardNumber(name) {
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) { hash = ((hash << 5) - hash) + name.charCodeAt(i); hash |= 0; }
+        const abs = Math.abs(hash);
+        const part1 = String(abs % 10000).padStart(4, '0');
+        const part2 = String(Math.floor(abs / 10000) % 10000).padStart(4, '0');
+        return `4FIN · ${part1} · ${part2}`;
+    }
+
+    // --- QR KÓD ---
+    let qrGenerated = false;
+    function generateQR(name, cardNumber) {
+        // ASCII-safe: remove diacritics for QR encoding
+        const safeName = name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/ /g, '-');
+        const safeNum = cardNumber.replace(/[^0-9A-Z]/g, '-');
+        const qrData = `4FIN-${safeName}-${safeNum}-${new Date().getFullYear()}`;
+        const box = document.getElementById('qr-code-box');
+        box.innerHTML = '';
+        new QRCode(box, { text: qrData, width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.L });
+        qrGenerated = true;
+
+        // Fullscreen overlay setup
+        const fsBox = document.getElementById('qr-code-fullscreen');
+        fsBox.innerHTML = '';
+        new QRCode(fsBox, { text: qrData, width: 260, height: 260, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.L });
+        document.getElementById('qr-name-fullscreen').innerText = name;
+        document.getElementById('qr-number-fullscreen').innerText = cardNumber;
+    }
+
+    function showQRFullscreen() {
+        const overlay = document.getElementById('qr-overlay');
+        overlay.style.display = 'flex';
+        if(typeof gtag === 'function') gtag('event', 'qr_fullscreen');
+        if (screen.orientation && screen.orientation.lock) { screen.orientation.lock('portrait').catch(() => {}); }
+    }
+    function hideQRFullscreen() { document.getElementById('qr-overlay').style.display = 'none'; }
+
+    // --- PWA INSTALL ---
+    let deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        // Zobrazit banner pouze na wallet screenu
+    });
+    function showInstallBanner() {
+        const banner = document.getElementById('install-banner');
+        if (deferredInstallPrompt && banner) banner.classList.add('visible');
+    }
+    function triggerInstall() {
+        if (!deferredInstallPrompt) return;
+        deferredInstallPrompt.prompt();
+        deferredInstallPrompt.userChoice.then(() => { deferredInstallPrompt = null; dismissInstall(); });
+    }
+    function dismissInstall() { document.getElementById('install-banner').classList.remove('visible'); }
 
     // Odchycení kliknutí na widget karty pro GA
     document.querySelector('.mini-card-widget').addEventListener('click', function() {
