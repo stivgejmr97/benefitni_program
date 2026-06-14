@@ -99,32 +99,90 @@
             transition: background-color 0.5s ease, color 0.5s ease;
         }
 
-        /* Desktop: phone frame */
-        @media (min-width: 600px) {
-            body {
-                background: radial-gradient(ellipse at 30% 20%, #1a0010 0%, #050505 60%, #000 100%);
-                align-items: flex-start;
-                padding: 30px 20px;
-                min-height: 100vh;
-            }
-        }
-
         .app-container {
-            width: 100%; max-width: 480px; background-color: var(--bg-base);
+            width: 100%; max-width: 100%; background-color: var(--bg-base);
             position: relative; min-height: 100vh; transition: background-color 0.5s ease;
             padding-bottom: 100px;
         }
 
-        @media (min-width: 600px) {
-            .app-container {
-                border-radius: 44px;
-                border: 1px solid rgba(255,255,255,0.08);
-                box-shadow: 0 50px 100px rgba(0,0,0,0.9), 0 0 0 1px rgba(177,0,77,0.08);
-                overflow-x: hidden;
+        /* --- DESKTOP SIDEBAR --- */
+        .desktop-sidebar {
+            display: none;
+        }
+
+        @media (min-width: 900px) {
+            body {
+                flex-direction: row;
+                align-items: flex-start;
+                justify-content: flex-start;
             }
-            [data-theme="light"] .app-container {
-                border: 1px solid rgba(0,0,0,0.08);
-                box-shadow: 0 50px 100px rgba(0,0,0,0.2);
+            .desktop-sidebar {
+                display: flex;
+                flex-direction: column;
+                width: 260px;
+                min-height: 100vh;
+                height: 100%;
+                position: fixed;
+                left: 0; top: 0;
+                background: var(--bg-surface);
+                border-right: 1px solid var(--border-color);
+                padding: 40px 20px 30px;
+                z-index: 200;
+                gap: 4px;
+                transition: background-color 0.5s, border-color 0.5s;
+            }
+            .sidebar-logo {
+                font-family: 'Playfair Display', serif;
+                font-size: 28px; font-weight: 500;
+                color: var(--text-primary);
+                margin-bottom: 8px; padding-bottom: 8px;
+            }
+            .sidebar-tagline {
+                font-size: 10px; text-transform: uppercase; letter-spacing: 2px;
+                color: var(--4fin-malinova); font-weight: 600; margin-bottom: 32px;
+            }
+            .sidebar-nav-item {
+                display: flex; align-items: center; gap: 14px;
+                padding: 13px 16px; border-radius: 12px;
+                color: var(--text-secondary); cursor: pointer;
+                transition: background 0.2s, color 0.2s;
+                font-size: 13px; font-weight: 500; text-decoration: none;
+            }
+            .sidebar-nav-item svg { width: 20px; height: 20px; stroke-width: 1.5; fill: none; stroke: currentColor; flex-shrink: 0; }
+            .sidebar-nav-item:hover { background: rgba(177,0,77,0.06); color: var(--text-primary); }
+            .sidebar-nav-item.active { background: rgba(177,0,77,0.1); color: var(--4fin-malinova); font-weight: 600; }
+            .sidebar-nav-item.active svg { stroke-width: 2; }
+            .sidebar-spacer { flex: 1; }
+            .sidebar-theme-btn {
+                display: flex; align-items: center; gap: 12px; padding: 13px 16px;
+                border-radius: 12px; background: none; border: none;
+                color: var(--text-secondary); cursor: pointer; font-size: 13px; font-weight: 500;
+                font-family: 'Inter', sans-serif; width: 100%; transition: color 0.2s;
+            }
+            .sidebar-theme-btn:hover { color: var(--text-primary); }
+            .app-container {
+                margin-left: 260px;
+                padding-bottom: 60px;
+            }
+            .bottom-nav { display: none !important; }
+            .theme-toggle-btn { display: none; }
+            .partner-list {
+                display: grid !important;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px !important;
+            }
+            .tips-list {
+                display: grid !important;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px !important;
+            }
+            .header { padding: 50px 30px 30px; }
+            .back-btn-top { left: 280px; }
+        }
+
+        @media (min-width: 1200px) {
+            .tips-list {
+                grid-template-columns: repeat(3, 1fr) !important;
             }
         }
 
@@ -390,6 +448,33 @@
 </head>
 <body>
 
+<!-- DESKTOP SIDEBAR (skrytý na mobilu) -->
+<nav class="desktop-sidebar" id="desktop-sidebar">
+    <div class="sidebar-logo">4fin</div>
+    <div class="sidebar-tagline">Klientský portál</div>
+    <div class="sidebar-nav-item active" id="snav-benefity" onclick="switchTab('tab-benefity')">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Výhody
+    </div>
+    <div class="sidebar-nav-item" id="snav-tipy" onclick="switchTab('tab-tipy')">
+        <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        Insights
+    </div>
+    <div class="sidebar-nav-item" id="snav-doporuceni" onclick="switchTab('tab-doporuceni')">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Doporučit
+    </div>
+    <div class="sidebar-nav-item" id="snav-poradce" onclick="switchTab('tab-poradce')">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Poradce
+    </div>
+    <div class="sidebar-spacer"></div>
+    <button class="sidebar-theme-btn" onclick="toggleTheme()">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        Přepnout motiv
+    </button>
+</nav>
+
 <div class="app-container">
     <button class="theme-toggle-btn" onclick="toggleTheme()" id="theme-icon">◐</button>
 
@@ -642,11 +727,48 @@
         </div>
     </div>
 
+    <!-- ZÁSADY OCHRANY SOUKROMÍ -->
+    <div id="screen-privacy" class="screen">
+        <button class="back-btn-top" id="privacy-back-btn" onclick="history.back(); return false;">←</button>
+        <div class="article-reader" style="padding-top:100px;">
+            <span class="article-meta">GDPR · Soukromí</span>
+            <h1 class="article-header">Zásady ochrany osobních údajů</h1>
+            <div class="article-body">
+                <p><strong>Správce údajů:</strong> 4fin s.r.o., IČ: 27747871, se sídlem Brno. Kontakt: info@4fin.cz</p>
+                <h4>Jaké údaje zpracováváme</h4>
+                <p>Aplikace pracuje výhradně lokálně ve vašem zařízení. Zpracováváme:</p>
+                <ul>
+                    <li><strong>Jméno a fotografii</strong> – uloženy pouze ve vašem zařízení (localStorage), nikam se neposílají</li>
+                    <li><strong>Zvací kód</strong> – ověřen přes Firebase Firestore (Google LLC); po úspěšném ověření je kód označen jako použitý</li>
+                    <li><strong>Analytická data</strong> – pouze po vašem výslovném souhlasu přes Google Analytics 4 (anonymizovaná IP)</li>
+                </ul>
+                <h4>Právní základ zpracování</h4>
+                <ul>
+                    <li><strong>Souhlas</strong> (čl. 6 odst. 1 písm. a) GDPR) – analytické cookies</li>
+                    <li><strong>Oprávněný zájem</strong> (čl. 6 odst. 1 písm. f) GDPR) – ověření zvacích kódů a zabezpečení aplikace</li>
+                </ul>
+                <h4>Uchovávání dat</h4>
+                <p>Data v zařízení (jméno, foto, session) jsou automaticky smazána po 30 dnech. Souhlas s cookies platí 1 rok. Data v Firestore (stav zvacích kódů) jsou uchovávána po dobu provozu programu.</p>
+                <h4>Vaše práva (GDPR)</h4>
+                <ul>
+                    <li>Právo na přístup, opravu a výmaz vašich dat</li>
+                    <li>Právo odvolat souhlas s analytickými cookies kdykoli (vymažte localStorage v nastavení prohlížeče)</li>
+                    <li>Právo podat stížnost u Úřadu pro ochranu osobních údajů (uoou.cz)</li>
+                </ul>
+                <h4>Přeshraniční předávání dat</h4>
+                <p>Firebase (Google LLC) a Google Analytics jsou provozovány v USA. Google LLC je certifikován v rámci EU-US Data Privacy Framework, čímž je zajištěna odpovídající úroveň ochrany.</p>
+                <h4>Kontakt</h4>
+                <p>Pro uplatnění práv nebo dotazy k ochraně osobních údajů kontaktujte: <strong>info@4fin.cz</strong></p>
+                <p style="margin-top:40px; font-size:12px; color:var(--text-secondary);">Verze dokumentu: červen 2025. Správce si vyhrazuje právo zásady aktualizovat.</p>
+            </div>
+        </div>
+    </div>
+
     <!-- GDPR Consent Modal -->
     <div id="gdpr-overlay" class="gdpr-overlay" style="display:none;">
         <div class="gdpr-box">
             <h2 class="gdpr-title">Soukromí a cookies</h2>
-            <p class="gdpr-text">Používáme analytické cookies (Google Analytics) ke zlepšení aplikace. Vaše osobní údaje (jméno, fotografie) jsou uloženy <strong>výhradně ve vašem zařízení</strong> a nikam se neposílají. Více v <a href="#" onclick="return false;">Zásadách ochrany soukromí</a>.</p>
+            <p class="gdpr-text">Používáme analytické cookies (Google Analytics) ke zlepšení aplikace. Vaše osobní údaje (jméno, fotografie) jsou uloženy <strong>výhradně ve vašem zařízení</strong> a nikam se neposílají. Více v <a href="#" onclick="openPrivacyPolicy(); return false;">Zásadách ochrany soukromí</a>.</p>
 
             <details class="gdpr-detail">
                 <summary>Podrobné nastavení</summary>
@@ -1180,22 +1302,48 @@
 
     function switchTab(tabId, showNav = true) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        
-        // Plynulý přesun nahoru při změně tabu
-        setTimeout(() => { 
+
+        setTimeout(() => {
             const activeTab = document.getElementById(tabId);
-            activeTab.classList.add('active'); 
-            window.scrollTo({ top: 0, behavior: 'auto' }); 
+            activeTab.classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'auto' });
         }, 50);
 
         const bottomNav = document.getElementById('bottom-navigation');
         if(showNav) bottomNav.classList.add('visible'); else bottomNav.classList.remove('visible');
 
+        // Sync bottom nav
         if(showNav) {
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            if(document.getElementById('nav-' + tabId.split('-')[1])) document.getElementById('nav-' + tabId.split('-')[1]).classList.add('active');
+            const navKey = tabId.split('-')[1];
+            if(document.getElementById('nav-' + navKey)) document.getElementById('nav-' + navKey).classList.add('active');
         }
+
+        // Sync sidebar nav
+        document.querySelectorAll('.sidebar-nav-item').forEach(n => n.classList.remove('active'));
+        const snavKey = tabId.replace('tab-', '').replace('screen-', '');
+        const snavEl = document.getElementById('snav-' + snavKey);
+        if(snavEl) snavEl.classList.add('active');
+
         if(tabId === 'screen-wallet') showInstallBanner();
+    }
+
+    function openPrivacyPolicy() {
+        const overlay = document.getElementById('gdpr-overlay');
+        const wasVisible = overlay.style.display !== 'none';
+        if(wasVisible) overlay.style.display = 'none';
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('screen-privacy').classList.add('active');
+        window.scrollTo({ top: 0, behavior: 'auto' });
+        document.getElementById('privacy-back-btn').onclick = () => {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            if(wasVisible) {
+                overlay.style.display = 'flex';
+                document.getElementById('screen-welcome').classList.add('active');
+            } else {
+                document.getElementById('tab-benefity').classList.add('active');
+            }
+        };
     }
 
     // --- REGISTRACE ---
