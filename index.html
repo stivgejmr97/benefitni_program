@@ -186,6 +186,14 @@
             }
         }
 
+        @media (min-width: 900px) {
+            .card-container {
+                max-width: 480px;
+                margin: 0 auto;
+                padding-top: 50px;
+            }
+        }
+
         /* Install prompt banner */
         .install-banner {
             display: none;
@@ -1632,40 +1640,6 @@
         }
     });
 
-    // --- DETAIL PARTNERA A KARTA ---
-    function openDetail(partnerId) {
-        // GA4 EVENT - Detail partnera
-        if(typeof gtag === 'function') gtag('event', 'zobrazeni_partnera', { 'partner_id': partnerId });
-
-        const dataBox = document.getElementById('data-' + partnerId);
-        const logoSrc = dataBox.querySelector('.data-logo').innerText;
-        const needsInvert = dataBox.querySelector('.data-invert').innerText === "1";
-        const logoImg = document.getElementById('det-logo');
-        
-        logoImg.src = logoSrc;
-        if(needsInvert) { logoImg.style.width = "50%"; logoImg.className = "invert-icon"; } 
-        else { logoImg.style.width = "100%"; logoImg.className = ""; }
-
-        document.getElementById('det-title').innerText = dataBox.querySelector('.data-title').innerText;
-        document.getElementById('det-desc').innerHTML = dataBox.querySelector('.data-desc').innerHTML;
-        document.getElementById('det-benefit-value').innerHTML = dataBox.querySelector('.data-benefit').innerHTML;
-        document.getElementById('det-proof-value').innerHTML = dataBox.querySelector('.data-proof').innerHTML;
-        
-        const addrContainer = document.getElementById('det-address-container');
-        if(dataBox.querySelector('.data-address')) { addrContainer.style.display = 'flex'; document.getElementById('det-address').innerText = dataBox.querySelector('.data-address').innerText; } 
-        else { addrContainer.style.display = 'none'; }
-
-        const linkBtn = document.getElementById('det-link');
-        const linkUrl = dataBox.querySelector('.data-link').innerText;
-        if(linkUrl) { linkBtn.style.display = 'block'; linkBtn.setAttribute('data-href', linkUrl); linkBtn.innerText = dataBox.querySelector('.data-link-text').innerText; } 
-        else { linkBtn.style.display = 'none'; }
-
-        const revBtn = document.getElementById('det-reviews-link');
-        if(dataBox.querySelector('.data-reviews-link') && dataBox.querySelector('.data-reviews-link').innerText) { revBtn.style.display = 'inline-block'; revBtn.href = dataBox.querySelector('.data-reviews-link').innerText; } 
-        else { revBtn.style.display = 'none'; }
-
-        switchTab('screen-detail', false);
-    }
 
     function setCardTheme(theme, btnElement) {
         if(typeof gtag === 'function') gtag('event', 'zmena_designu_karty', {'barva': theme});
