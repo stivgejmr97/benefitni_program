@@ -16,7 +16,7 @@
     <!-- Firebase -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-        import { getFirestore, doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+        import { getFirestore, doc, getDoc, updateDoc, collection, getDocs, setDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyB1tggmoUwIu8dzVe77i9hgNIZcNpSHNow",
@@ -54,6 +54,30 @@
                 }
             })();
                 return Promise.race([verify, timeout]);
+            };
+
+            // Partner CRUD funkce
+            window.getPartnersFromFirestore = async () => {
+                try {
+                    const snap = await getDocs(collection(db, 'partners'));
+                    if (snap.empty) return null;
+                    return snap.docs.map(d => ({id: d.id, ...d.data()}))
+                        .filter(p => p.active !== false)
+                        .sort((a,b) => (a.order||99) - (b.order||99));
+                } catch(e) { console.warn('Firestore partners error:', e); return null; }
+            };
+            window.savePartnerToFirestore = async (partnerId, data) => {
+                await setDoc(doc(db, 'partners', partnerId), data);
+            };
+            window.deletePartnerFromFirestore = async (partnerId) => {
+                await deleteDoc(doc(db, 'partners', partnerId));
+            };
+            window.getAllPartnersFromFirestore = async () => {
+                try {
+                    const snap = await getDocs(collection(db, 'partners'));
+                    return snap.docs.map(d => ({id: d.id, ...d.data()}))
+                        .sort((a,b) => (a.order||99) - (b.order||99));
+                } catch(e) { return []; }
             };
 
             window.firebaseReady = true;
@@ -452,6 +476,40 @@
         .color-platinum { background: linear-gradient(145deg, #E0E0E0, #BDBDBD); }
         .color-signature { background: linear-gradient(145deg, #B1004D, #63002b); }
 
+        /* --- ADMIN UI --- */
+        .admin-bar { position: fixed; top: 0; left: 260px; right: 0; height: 46px; background: #B1004D; color: white; display: none; align-items: center; padding: 0 20px; gap: 12px; z-index: 1000; font-size: 12px; font-family: 'Inter', sans-serif; }
+        .admin-bar.visible { display: flex; }
+        @media (max-width: 899px) { .admin-bar { left: 0; top: 46px; } }
+        .admin-bar-label { font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; flex: 1; }
+        .admin-bar-btn { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; padding: 6px 14px; font-size: 11px; font-weight: 600; cursor: pointer; transition: background 0.2s; font-family: 'Inter', sans-serif; }
+        .admin-bar-btn:hover { background: rgba(255,255,255,0.35); }
+        .admin-bar-btn.primary { background: white; color: #B1004D; border-color: white; }
+        .admin-bar-btn.primary:hover { background: #f0f0f0; }
+
+        .partner-admin-controls { display: flex; gap: 6px; margin-top: 8px; }
+        .partner-edit-btn, .partner-del-btn { background: none; border: 1px solid var(--border-color); border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 11px; font-weight: 600; color: var(--text-secondary); transition: all 0.2s; font-family: 'Inter', sans-serif; }
+        .partner-edit-btn:hover { border-color: var(--4fin-malinova); color: var(--4fin-malinova); }
+        .partner-del-btn:hover { border-color: #ff4444; color: #ff4444; }
+
+        .admin-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 9999; overflow-y: auto; padding: 20px; }
+        .admin-modal-overlay.visible { display: block; }
+        .admin-modal-box { width: 100%; max-width: 640px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 20px; padding: 35px 30px 30px; margin: 20px auto; }
+        .admin-modal-title { font-size: 22px; font-weight: 700; margin: 0 0 24px; font-family: 'Playfair Display', serif; }
+        .admin-form-row { margin-bottom: 16px; }
+        .admin-form-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); font-weight: 600; margin-bottom: 6px; }
+        .admin-form-input, .admin-form-select, .admin-form-textarea { width: 100%; box-sizing: border-box; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 11px 14px; font-size: 14px; color: var(--text-primary); font-family: 'Inter', sans-serif; transition: border-color 0.2s; }
+        .admin-form-input:focus, .admin-form-select:focus, .admin-form-textarea:focus { outline: none; border-color: var(--4fin-malinova); }
+        .admin-form-textarea { resize: vertical; min-height: 90px; }
+        .admin-form-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .admin-form-checkbox-row { display: flex; align-items: center; gap: 10px; }
+        .admin-form-checkbox-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--4fin-malinova); cursor: pointer; }
+        .admin-form-actions { display: flex; gap: 10px; margin-top: 28px; flex-wrap: wrap; }
+        .admin-modal-save-btn { flex: 1; background: var(--4fin-malinova); color: white; border: none; border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; transition: opacity 0.2s; }
+        .admin-modal-save-btn:hover { opacity: 0.85; }
+        .admin-modal-cancel-btn { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px 22px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; }
+        .admin-logo-preview { width: 60px; height: 60px; object-fit: contain; border: 1px solid var(--border-color); border-radius: 10px; padding: 6px; margin-top: 8px; background: var(--bg-card); display: none; }
+        .admin-status-msg { font-size: 13px; color: var(--4fin-malinova); margin-top: 10px; display: none; }
+
     </style>
 </head>
 <body>
@@ -483,7 +541,132 @@
     </button>
 </nav>
 
-<div class="app-container">
+<!-- ADMIN BAR -->
+<div class="admin-bar" id="admin-bar">
+    <span class="admin-bar-label">⚙ Admin režim</span>
+    <button class="admin-bar-btn primary" onclick="openPartnerModal(null)">+ Přidat partnera</button>
+    <button class="admin-bar-btn" onclick="openPartnersListAdmin()">Seznam partnerů</button>
+    <button class="admin-bar-btn" onclick="exitAdminMode()">Odhlásit</button>
+</div>
+
+<!-- ADMIN MODAL – přidat/upravit partnera -->
+<div class="admin-modal-overlay" id="admin-partner-modal">
+    <div class="admin-modal-box">
+        <h2 class="admin-modal-title" id="admin-modal-title">Nový partner</h2>
+        <input type="hidden" id="admin-partner-id-field">
+
+        <div class="admin-form-cols">
+            <div class="admin-form-row">
+                <label class="admin-form-label">Název *</label>
+                <input type="text" id="af-name" class="admin-form-input" placeholder="např. Watch Wizards" oninput="adminAutoId()">
+            </div>
+            <div class="admin-form-row">
+                <label class="admin-form-label">Podtitulek</label>
+                <input type="text" id="af-subtitle" class="admin-form-input" placeholder="např. Haute Horlogerie">
+            </div>
+        </div>
+
+        <div class="admin-form-cols">
+            <div class="admin-form-row">
+                <label class="admin-form-label">ID (slug) *</label>
+                <input type="text" id="af-id" class="admin-form-input" placeholder="napr. ww" pattern="[a-z0-9_-]+">
+            </div>
+            <div class="admin-form-row">
+                <label class="admin-form-label">Kategorie *</label>
+                <select id="af-category" class="admin-form-select">
+                    <option value="lifestyle">Lifestyle</option>
+                    <option value="zdravi">Zdraví</option>
+                    <option value="gastro">Gastro</option>
+                    <option value="pece">Péče</option>
+                    <option value="sport">Sport</option>
+                    <option value="moda">Móda</option>
+                    <option value="foto">Foto</option>
+                    <option value="vzdelavani">Vzdělávání</option>
+                    <option value="automoto">Automoto</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="admin-form-row">
+            <label class="admin-form-label">Logo URL</label>
+            <input type="url" id="af-logo" class="admin-form-input" placeholder="https://..." oninput="previewLogo()">
+            <img id="af-logo-preview" class="admin-logo-preview" alt="náhled loga">
+        </div>
+
+        <div class="admin-form-cols">
+            <div class="admin-form-row">
+                <label class="admin-form-label">Adresa / lokalita</label>
+                <input type="text" id="af-address" class="admin-form-input" placeholder="např. Praha 1 / E-shop">
+            </div>
+            <div class="admin-form-row">
+                <label class="admin-form-label">Odkaz na Google recenze</label>
+                <input type="url" id="af-reviews" class="admin-form-input" placeholder="https://google.com/...">
+            </div>
+        </div>
+
+        <div class="admin-form-row">
+            <label class="admin-form-label">Popis partnera (HTML nebo prostý text)</label>
+            <textarea id="af-desc" class="admin-form-textarea" rows="4" placeholder="&lt;p&gt;Krátký popis...&lt;/p&gt;"></textarea>
+        </div>
+
+        <div class="admin-form-row">
+            <label class="admin-form-label">Výhoda pro klienty 4fin *</label>
+            <input type="text" id="af-benefit" class="admin-form-input" placeholder="např. 12 % sleva na celkový nákup">
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">Může být více výhod oddělených středníkem: 10% sleva; Doprava zdarma</div>
+        </div>
+
+        <div class="admin-form-row">
+            <label class="admin-form-label">Jak výhodu uplatnit *</label>
+            <input type="text" id="af-proof" class="admin-form-input" placeholder="např. Zadání kódu 4FIN12 v košíku">
+        </div>
+
+        <div class="admin-form-cols">
+            <div class="admin-form-row">
+                <label class="admin-form-label">Odkaz na web</label>
+                <input type="url" id="af-link" class="admin-form-input" placeholder="https://...">
+            </div>
+            <div class="admin-form-row">
+                <label class="admin-form-label">Text tlačítka odkazu</label>
+                <input type="text" id="af-linktext" class="admin-form-input" placeholder="např. Vstoupit do butiku">
+            </div>
+        </div>
+
+        <div class="admin-form-cols">
+            <div class="admin-form-row">
+                <label class="admin-form-label">Pořadí (číslo)</label>
+                <input type="number" id="af-order" class="admin-form-input" placeholder="1" min="1" value="99">
+            </div>
+            <div class="admin-form-row" style="padding-top:24px;">
+                <div class="admin-form-checkbox-row">
+                    <input type="checkbox" id="af-invertlogo">
+                    <label for="af-invertlogo" style="font-size:13px;cursor:pointer;">Invertovat logo (bílé logo na tmavém pozadí)</label>
+                </div>
+                <div class="admin-form-checkbox-row" style="margin-top:8px;">
+                    <input type="checkbox" id="af-active" checked>
+                    <label for="af-active" style="font-size:13px;cursor:pointer;">Partner je aktivní (zobrazuje se klientům)</label>
+                </div>
+            </div>
+        </div>
+
+        <div id="admin-status-msg" class="admin-status-msg"></div>
+
+        <div class="admin-form-actions">
+            <button class="admin-modal-save-btn" onclick="savePartnerForm()">Uložit partnera</button>
+            <button class="admin-modal-cancel-btn" onclick="closePartnerModal()">Zrušit</button>
+        </div>
+    </div>
+</div>
+
+<!-- ADMIN SEZNAM PARTNERŮ MODAL -->
+<div class="admin-modal-overlay" id="admin-list-modal">
+    <div class="admin-modal-box">
+        <h2 class="admin-modal-title">Správa partnerů</h2>
+        <div id="admin-partners-list-content" style="margin-bottom:20px;"></div>
+        <button class="admin-modal-cancel-btn" onclick="document.getElementById('admin-list-modal').classList.remove('visible')">Zavřít</button>
+    </div>
+</div>
+
+<div class="app-container" id="app-container">
     <button class="theme-toggle-btn" onclick="toggleTheme()" id="theme-icon">◐</button>
 
     <div id="screen-welcome" class="screen active">
@@ -1067,20 +1250,255 @@
     }
 
     // --- HLAVNÍ INIT (voláno po GDPR souhlasu) ---
-    function appInit() {
+    async function appInit() {
+        // Zkontroluj admin režim
+        if (checkAdminMode()) activateAdmin();
+
+        // Načti partnery z Firestore (fallback na hardcoded)
+        if (window.firebaseReady && window.getPartnersFromFirestore) {
+            try {
+                const fsPartners = isAdmin
+                    ? await window.getAllPartnersFromFirestore()
+                    : await window.getPartnersFromFirestore();
+                if (fsPartners && fsPartners.length > 0) {
+                    currentPartnersData = fsPartners;
+                }
+            } catch(e) { /* fallback na hardcoded */ }
+        }
+
         renderPartners();
         filterArticles('all');
         fetch4finArticles();
 
         const session = loadSession();
-        if (session) {
-            restoreSession(session);
-        }
-        // Zkontroluj rate limit při načtení
-        if (isRateLimited()) {
-            showRateLimitMsg(getRateLimitRemaining());
+        if (session) restoreSession(session);
+        if (isRateLimited()) showRateLimitMsg(getRateLimitRemaining());
+    }
+
+    // --- ADMIN CRUD FUNKCE ---
+
+    function slugify(str) {
+        return str.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+            .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 20);
+    }
+
+    function adminAutoId() {
+        const idField = document.getElementById('af-id');
+        const nameField = document.getElementById('af-name');
+        // auto-fill ID jen pokud jde o nový záznam a ID je prázdné nebo auto-generated
+        if (!idField._manuallyEdited) {
+            idField.value = slugify(nameField.value).slice(0, 10);
         }
     }
+
+    function previewLogo() {
+        const url = document.getElementById('af-logo').value.trim();
+        const preview = document.getElementById('af-logo-preview');
+        if (url) { preview.src = url; preview.style.display = 'block'; }
+        else { preview.style.display = 'none'; }
+    }
+
+    function openPartnerModal(partnerId) {
+        const modal = document.getElementById('admin-partner-modal');
+        const title = document.getElementById('admin-modal-title');
+        const statusMsg = document.getElementById('admin-status-msg');
+        statusMsg.style.display = 'none';
+
+        // Reset ID manual edit flag
+        document.getElementById('af-id')._manuallyEdited = false;
+        document.getElementById('af-id').addEventListener('input', function() { this._manuallyEdited = true; }, { once: false });
+
+        if (partnerId) {
+            // Editace existujícího
+            const p = currentPartnersData.find(x => x.id === partnerId);
+            if (!p) return;
+            title.textContent = 'Upravit partnera';
+            document.getElementById('admin-partner-id-field').value = partnerId;
+            document.getElementById('af-name').value = p.name || '';
+            document.getElementById('af-subtitle').value = p.subtitle || '';
+            document.getElementById('af-id').value = partnerId;
+            document.getElementById('af-id')._manuallyEdited = true;
+            document.getElementById('af-category').value = p.category || 'lifestyle';
+            document.getElementById('af-logo').value = p.logo || '';
+            document.getElementById('af-address').value = p.address || '';
+            document.getElementById('af-reviews').value = p.reviewsLink || '';
+            document.getElementById('af-desc').value = p.desc || '';
+            document.getElementById('af-benefit').value = p.benefitText || benefitHtmlToText(p.benefitHtml || '');
+            document.getElementById('af-proof').value = p.proof || '';
+            document.getElementById('af-link').value = p.link || '';
+            document.getElementById('af-linktext').value = p.linkText || '';
+            document.getElementById('af-order').value = p.order || 99;
+            document.getElementById('af-invertlogo').checked = !!p.invertLogo;
+            document.getElementById('af-active').checked = p.active !== false;
+            previewLogo();
+        } else {
+            // Nový partner
+            title.textContent = 'Nový partner';
+            document.getElementById('admin-partner-id-field').value = '';
+            ['af-name','af-subtitle','af-id','af-logo','af-address','af-reviews','af-desc','af-benefit','af-proof','af-link','af-linktext'].forEach(id => {
+                document.getElementById(id).value = '';
+            });
+            document.getElementById('af-order').value = (currentPartnersData.length + 1);
+            document.getElementById('af-invertlogo').checked = false;
+            document.getElementById('af-active').checked = true;
+            document.getElementById('af-logo-preview').style.display = 'none';
+            document.getElementById('af-category').value = 'lifestyle';
+        }
+
+        modal.classList.add('visible');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closePartnerModal() {
+        document.getElementById('admin-partner-modal').classList.remove('visible');
+        document.body.style.overflow = '';
+    }
+
+    function benefitHtmlToText(html) {
+        // Extrahuje prostý text z benefitHtml pro editaci
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        return div.textContent.trim();
+    }
+
+    function benefitTextToHtml(text) {
+        // Převede text (oddělený středníky) na HTML list
+        const items = text.split(';').map(s => s.trim()).filter(Boolean);
+        if (items.length === 0) return '';
+        const liStyle = 'margin:0 0 6px 0;font-family:\'Inter\',sans-serif;font-size:14px;color:var(--text-primary);font-weight:300;';
+        const strongStyle = 'color:var(--4fin-malinova);font-weight:600;';
+        const lis = items.map(item => {
+            // Zkus detekovat "X% sleva" nebo "X Kč" jako tučný prefix
+            const match = item.match(/^([^–:-]+[%Kč\d]+[^\s]*\s+(?:sleva|bonus|zdarma|zvýhodnění|VIP|cena)[^\s]*)(.*)$/i);
+            if (match) {
+                return `<li style="${liStyle}"><strong style="${strongStyle}">${match[1].trim()}</strong>${match[2]}</li>`;
+            }
+            return `<li style="${liStyle}">${item}</li>`;
+        }).join('');
+        return `<ul style="margin:0;padding-left:18px;">${lis}</ul>`;
+    }
+
+    async function savePartnerForm() {
+        const saveBtn = document.querySelector('.admin-modal-save-btn');
+        const statusMsg = document.getElementById('admin-status-msg');
+        statusMsg.style.display = 'none';
+
+        const name = document.getElementById('af-name').value.trim();
+        const id = document.getElementById('af-id').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        const benefit = document.getElementById('af-benefit').value.trim();
+        const proof = document.getElementById('af-proof').value.trim();
+
+        if (!name || !id || !benefit || !proof) {
+            statusMsg.textContent = 'Vyplňte prosím: Název, ID, Výhodu a Jak uplatnit.';
+            statusMsg.style.color = '#ff4444';
+            statusMsg.style.display = 'block';
+            return;
+        }
+
+        const data = {
+            id,
+            name,
+            subtitle: document.getElementById('af-subtitle').value.trim(),
+            category: document.getElementById('af-category').value,
+            logo: document.getElementById('af-logo').value.trim(),
+            address: document.getElementById('af-address').value.trim(),
+            reviewsLink: document.getElementById('af-reviews').value.trim(),
+            desc: document.getElementById('af-desc').value.trim(),
+            benefitText: benefit,
+            benefitHtml: benefitTextToHtml(benefit),
+            proof,
+            link: document.getElementById('af-link').value.trim(),
+            linkText: document.getElementById('af-linktext').value.trim(),
+            order: parseInt(document.getElementById('af-order').value) || 99,
+            invertLogo: document.getElementById('af-invertlogo').checked,
+            active: document.getElementById('af-active').checked,
+            updatedAt: Date.now()
+        };
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Ukládám...';
+
+        try {
+            if (window.savePartnerToFirestore) {
+                await window.savePartnerToFirestore(id, data);
+                // Refresh local data
+                const allPartners = await window.getAllPartnersFromFirestore();
+                if (allPartners) currentPartnersData = allPartners;
+            } else {
+                // Offline fallback – aktualizuj pouze lokálně
+                const idx = currentPartnersData.findIndex(p => p.id === id);
+                if (idx >= 0) currentPartnersData[idx] = data;
+                else currentPartnersData.push(data);
+            }
+            renderPartners();
+            closePartnerModal();
+        } catch(e) {
+            statusMsg.textContent = 'Chyba při ukládání: ' + e.message;
+            statusMsg.style.color = '#ff4444';
+            statusMsg.style.display = 'block';
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Uložit partnera';
+        }
+    }
+
+    async function deletePartnerAdmin(partnerId, partnerName) {
+        if (!confirm(`Opravdu smazat partnera "${partnerName}"? Tato akce je nevratná.`)) return;
+        try {
+            if (window.deletePartnerFromFirestore) {
+                await window.deletePartnerFromFirestore(partnerId);
+            }
+            currentPartnersData = currentPartnersData.filter(p => p.id !== partnerId);
+            renderPartners();
+        } catch(e) {
+            alert('Chyba při mazání: ' + e.message);
+        }
+    }
+
+    async function openPartnersListAdmin() {
+        const modal = document.getElementById('admin-list-modal');
+        const content = document.getElementById('admin-partners-list-content');
+        content.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Načítám...</div>';
+        modal.classList.add('visible');
+
+        let all = currentPartnersData;
+        if (window.getAllPartnersFromFirestore) {
+            try { all = await window.getAllPartnersFromFirestore() || all; } catch(e) {}
+        }
+        currentPartnersData = all;
+
+        if (all.length === 0) {
+            content.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Žádní partneři v databázi. Použijte "+ Přidat partnera" pro první přidání.</div>';
+            return;
+        }
+
+        content.innerHTML = all.map(p => `
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border-color);">
+                <img src="${p.logo||''}" alt="" style="width:40px;height:40px;object-fit:contain;border-radius:8px;border:1px solid var(--border-color);background:var(--bg-card);padding:4px;flex-shrink:0;" onerror="this.style.display='none'">
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:600;font-size:14px;">${sanitize(p.name)}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;">${p.category} · pořadí ${p.order||'?'} · ${p.active===false?'<span style="color:#ff4444">neaktivní</span>':'<span style="color:#22c55e">aktivní</span>'}</div>
+                </div>
+                <button class="partner-edit-btn" onclick="closeListModal();openPartnerModal('${p.id}')">✏ Upravit</button>
+                <button class="partner-del-btn" onclick="deletePartnerAdmin('${p.id}','${sanitize(p.name)}');closeListModal()">🗑</button>
+            </div>`).join('');
+    }
+
+    function closeListModal() {
+        document.getElementById('admin-list-modal').classList.remove('visible');
+    }
+
+    // Migrace výchozích dat do Firestore (jen jednou, ručně spustitelná z konzole)
+    window.migratePartnersToFirestore = async () => {
+        if (!window.savePartnerToFirestore) { console.warn('Firebase není připraveno'); return; }
+        for (let i = 0; i < partnersData.length; i++) {
+            const p = partnersData[i];
+            const data = {...p, order: i+1, active: true, benefitText: benefitHtmlToText(p.benefitHtml||''), updatedAt: Date.now()};
+            await window.savePartnerToFirestore(p.id, data);
+            console.log(`Migrace: ${p.name} hotovo`);
+        }
+        console.log('Migrace dokončena!');
+    };
 
     // ============================================================
     // DATABÁZE PARTNERŮ
@@ -1139,17 +1557,55 @@
         }
     ];
 
+    // --- ADMIN REŽIM ---
+    let isAdmin = false;
+    let currentPartnersData = [...partnersData]; // začneme s hardcoded, přepíšeme z Firestore
+
+    function checkAdminMode() {
+        const params = new URLSearchParams(window.location.search);
+        const adminParam = params.get('admin');
+        if (adminParam === '4FIN-ADMIN-2025') {
+            localStorage.setItem('4fin_admin', JSON.stringify({ time: Date.now() }));
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+        const stored = localStorage.getItem('4fin_admin');
+        if (stored) {
+            try {
+                const s = JSON.parse(stored);
+                if (Date.now() - s.time < 8 * 60 * 60 * 1000) return true;
+            } catch(e) {}
+            localStorage.removeItem('4fin_admin');
+        }
+        return false;
+    }
+
+    function activateAdmin() {
+        isAdmin = true;
+        document.getElementById('admin-bar').classList.add('visible');
+        document.getElementById('app-container').style.marginTop = '46px';
+    }
+
+    function exitAdminMode() {
+        localStorage.removeItem('4fin_admin');
+        isAdmin = false;
+        document.getElementById('admin-bar').classList.remove('visible');
+        document.getElementById('app-container').style.marginTop = '';
+        renderPartners();
+    }
+
     // --- RENDER + FILTER PARTNERŮ ---
     let activeBenefitCat = 'vse';
 
-    function renderPartners() {
+    function renderPartners(data) {
+        if (data) currentPartnersData = data;
         const container = document.getElementById('partner-list-container');
         const searchVal = (document.getElementById('benefits-search')?.value || '').toLowerCase().trim();
         const empty = document.getElementById('benefits-empty');
 
-        const filtered = partnersData.filter(p => {
+        const filtered = currentPartnersData.filter(p => {
+            if (!isAdmin && p.active === false) return false;
             const catMatch = activeBenefitCat === 'vse' || p.category === activeBenefitCat;
-            const searchMatch = !searchVal || p.name.toLowerCase().includes(searchVal) || p.subtitle.toLowerCase().includes(searchVal);
+            const searchMatch = !searchVal || p.name.toLowerCase().includes(searchVal) || (p.subtitle||'').toLowerCase().includes(searchVal);
             return catMatch && searchMatch;
         });
 
@@ -1163,13 +1619,19 @@
         filtered.forEach(p => {
             const div = document.createElement('div');
             div.className = 'partner-item';
-            div.onclick = () => openDetail(p.id);
+            if (p.active === false) div.style.opacity = '0.5';
             const logoStyle = p.invertLogo ? 'width:50%;' : 'width:100%;';
             const logoClass = p.invertLogo ? 'invert-icon' : '';
+            const adminControls = isAdmin ? `
+                <div class="partner-admin-controls" onclick="event.stopPropagation()">
+                    <button class="partner-edit-btn" onclick="openPartnerModal('${p.id}')">✏ Upravit</button>
+                    <button class="partner-del-btn" onclick="deletePartnerAdmin('${p.id}', '${sanitize(p.name)}')">🗑 Smazat</button>
+                </div>` : '';
             div.innerHTML = `
-                <div class="partner-logo"><img src="${p.logo}" alt="${p.name}" style="${logoStyle}" class="${logoClass}"></div>
-                <div class="partner-info"><h3>${p.name}</h3><p>${p.subtitle}</p></div>
-                <div class="partner-arrow">→</div>`;
+                <div class="partner-logo"><img src="${p.logo || ''}" alt="${sanitize(p.name)}" style="${logoStyle}" class="${logoClass}" onerror="this.style.display='none'"></div>
+                <div class="partner-info"><h3>${sanitize(p.name)}</h3><p>${sanitize(p.subtitle||'')}</p>${adminControls}</div>
+                <div class="partner-arrow" style="${isAdmin?'display:none':''}">→</div>`;
+            if (!isAdmin) div.onclick = () => openDetail(p.id);
             container.appendChild(div);
         });
     }
@@ -1194,7 +1656,7 @@
     }
 
     function openDetail(partnerId) {
-        const p = partnersData.find(x => x.id === partnerId);
+        const p = currentPartnersData.find(x => x.id === partnerId);
         if (!p) return;
         if(typeof gtag === 'function') gtag('event', 'zobrazeni_partnera', { 'partner_id': partnerId });
 
