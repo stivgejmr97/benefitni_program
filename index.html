@@ -16,7 +16,8 @@
     <!-- Firebase -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-        import { getFirestore, doc, getDoc, updateDoc, collection, getDocs, setDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+        import { getFirestore, doc, getDoc, updateDoc, collection, getDocs, setDoc, deleteDoc, addDoc, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyB1tggmoUwIu8dzVe77i9hgNIZcNpSHNow",
@@ -77,6 +78,40 @@
                     const snap = await getDocs(collection(db, 'partners'));
                     return snap.docs.map(d => ({id: d.id, ...d.data()}))
                         .sort((a,b) => (a.order||99) - (b.order||99));
+                } catch(e) { return []; }
+            };
+
+            // Firebase Auth pro admin
+            const auth = getAuth(app);
+            window.adminSignIn = async (email, password) => {
+                const cred = await signInWithEmailAndPassword(auth, email, password);
+                return cred.user;
+            };
+            window.adminSignOut = async () => {
+                await signOut(auth);
+                window.currentAdminUser = null;
+            };
+            onAuthStateChanged(auth, (user) => {
+                window.currentAdminUser = user || null;
+                if (user && typeof activateAdmin === 'function') {
+                    activateAdmin();
+                    loadPartnersForAdmin();
+                }
+            });
+
+            // Reviews CRUD
+            window.addReview = async (partnerId, reviewData) => {
+                await addDoc(collection(db, 'partners', partnerId, 'reviews'), {
+                    ...reviewData, createdAt: Date.now()
+                });
+            };
+            window.getReviews = async (partnerId) => {
+                try {
+                    const snap = await getDocs(query(
+                        collection(db, 'partners', partnerId, 'reviews'),
+                        orderBy('createdAt', 'desc')
+                    ));
+                    return snap.docs.map(d => ({id: d.id, ...d.data()}));
                 } catch(e) { return []; }
             };
 
@@ -510,6 +545,51 @@
         .admin-logo-preview { width: 60px; height: 60px; object-fit: contain; border: 1px solid var(--border-color); border-radius: 10px; padding: 6px; margin-top: 8px; background: var(--bg-card); display: none; }
         .admin-status-msg { font-size: 13px; color: var(--4fin-malinova); margin-top: 10px; display: none; }
 
+        /* --- ADMIN LOGIN MODAL --- */
+        .admin-login-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 10000; align-items: center; justify-content: center; }
+        .admin-login-modal-overlay.visible { display: flex; }
+        .admin-login-box { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 24px; padding: 40px 35px; width: 100%; max-width: 400px; margin: 20px; }
+        .admin-login-title { font-size: 22px; font-weight: 700; margin: 0 0 6px; font-family: 'Playfair Display', serif; }
+        .admin-login-sub { font-size: 13px; color: var(--text-secondary); margin: 0 0 28px; }
+        .admin-login-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); font-weight: 600; margin-bottom: 6px; }
+        .admin-login-input { width: 100%; box-sizing: border-box; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px; font-size: 14px; color: var(--text-primary); font-family: 'Inter', sans-serif; margin-bottom: 16px; }
+        .admin-login-input:focus { outline: none; border-color: var(--4fin-malinova); }
+        .admin-login-btn { width: 100%; background: var(--4fin-malinova); color: white; border: none; border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; transition: opacity 0.2s; margin-top: 4px; }
+        .admin-login-btn:hover { opacity: 0.85; }
+        .admin-login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .admin-login-err { font-size: 13px; color: #ff4444; margin-top: 10px; display: none; text-align: center; }
+        .admin-login-cancel { display: block; text-align: center; margin-top: 16px; font-size: 13px; color: var(--text-secondary); cursor: pointer; }
+        .admin-login-cancel:hover { color: var(--text-primary); }
+        /* skrytý admin trigger v patičce sidebaru */
+        .admin-secret-trigger { font-size: 10px; color: transparent; cursor: default; padding: 4px; margin-top: 4px; user-select: none; }
+        .admin-secret-trigger:hover { color: var(--text-secondary); cursor: pointer; }
+
+        /* --- RECENZE --- */
+        .reviews-section { margin-top: 30px; border-top: 1px solid var(--border-color); padding-top: 24px; }
+        .reviews-title { font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-secondary); font-weight: 600; margin-bottom: 20px; }
+        .review-form { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+        .review-form-title { font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+        .star-selector { display: flex; gap: 6px; margin-bottom: 14px; }
+        .star-btn { font-size: 24px; cursor: pointer; opacity: 0.3; transition: opacity 0.15s, transform 0.1s; border: none; background: none; padding: 0; line-height: 1; }
+        .star-btn.active, .star-btn:hover { opacity: 1; transform: scale(1.1); }
+        .review-text-input { width: 100%; box-sizing: border-box; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 11px 14px; font-size: 14px; color: var(--text-primary); font-family: 'Inter', sans-serif; resize: none; min-height: 72px; }
+        .review-text-input:focus { outline: none; border-color: var(--4fin-malinova); }
+        .review-name-input { width: 100%; box-sizing: border-box; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 11px 14px; font-size: 14px; color: var(--text-primary); font-family: 'Inter', sans-serif; margin-bottom: 10px; }
+        .review-name-input:focus { outline: none; border-color: var(--4fin-malinova); }
+        .review-submit-btn { background: var(--4fin-malinova); color: white; border: none; border-radius: 10px; padding: 12px 22px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; transition: opacity 0.2s; }
+        .review-submit-btn:hover { opacity: 0.85; }
+        .review-submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .review-success-msg { font-size: 13px; color: #22c55e; margin-top: 10px; display: none; }
+        .review-item { padding: 14px 0; border-bottom: 1px solid var(--border-color); }
+        .review-item:last-child { border-bottom: none; }
+        .review-item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+        .review-item-name { font-size: 13px; font-weight: 600; }
+        .review-item-stars { font-size: 14px; letter-spacing: 1px; }
+        .review-item-date { font-size: 11px; color: var(--text-secondary); }
+        .review-item-text { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+        .reviews-empty { font-size: 13px; color: var(--text-secondary); text-align: center; padding: 20px 0; }
+        .reviews-loading { font-size: 13px; color: var(--text-secondary); text-align: center; padding: 12px 0; }
+
     </style>
 </head>
 <body>
@@ -535,11 +615,28 @@
         Poradce
     </div>
     <div class="sidebar-spacer"></div>
+    <span class="admin-secret-trigger" onclick="openAdminLogin()" title="">⚙</span>
     <button class="sidebar-theme-btn" onclick="toggleTheme()">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
         Přepnout motiv
     </button>
 </nav>
+
+<!-- ADMIN LOGIN MODAL -->
+<div class="admin-login-modal-overlay" id="admin-login-modal">
+    <div class="admin-login-box">
+        <h2 class="admin-login-title">Admin přihlášení</h2>
+        <p class="admin-login-sub">4fin Benefitní portál · Správa</p>
+        <label class="admin-login-label">E-mail</label>
+        <input type="email" id="admin-email" class="admin-login-input" placeholder="jakub.latecka@4fin.cz" autocomplete="email">
+        <label class="admin-login-label">Heslo</label>
+        <input type="password" id="admin-password" class="admin-login-input" placeholder="••••••••" autocomplete="current-password"
+               onkeydown="if(event.key==='Enter') doAdminLogin()">
+        <button class="admin-login-btn" id="admin-login-btn" onclick="doAdminLogin()">Přihlásit se</button>
+        <div class="admin-login-err" id="admin-login-err"></div>
+        <span class="admin-login-cancel" onclick="closeAdminLogin()">Zrušit</span>
+    </div>
+</div>
 
 <!-- ADMIN BAR -->
 <div class="admin-bar" id="admin-bar">
@@ -851,6 +948,32 @@
             
             <button id="det-link" class="primary-btn" style="margin: 0 0 15px 0; width:100%; box-shadow:none;" onclick="window.open(this.getAttribute('data-href'), '_blank')">Odkaz / E-shop</button>
             <a id="det-reviews-link" href="#" target="_blank" class="secondary-btn" style="margin-top:0;">⭐ Přečíst recenze na Google</a>
+
+            <!-- RECENZE -->
+            <div class="reviews-section">
+                <div class="reviews-title">Hodnocení od klientů 4fin</div>
+
+                <!-- Formulář pro novou recenzi -->
+                <div class="review-form" id="review-form-box">
+                    <div class="review-form-title">Napište hodnocení</div>
+                    <div class="star-selector" id="star-selector">
+                        <button class="star-btn" data-val="1" onclick="selectStar(1)">★</button>
+                        <button class="star-btn" data-val="2" onclick="selectStar(2)">★</button>
+                        <button class="star-btn" data-val="3" onclick="selectStar(3)">★</button>
+                        <button class="star-btn" data-val="4" onclick="selectStar(4)">★</button>
+                        <button class="star-btn" data-val="5" onclick="selectStar(5)">★</button>
+                    </div>
+                    <input type="text" id="review-name" class="review-name-input" placeholder="Vaše jméno (nepovinné)">
+                    <textarea id="review-text" class="review-text-input" placeholder="Sdělte svou zkušenost s tímto partnerem..." rows="3"></textarea>
+                    <button class="review-submit-btn" id="review-submit-btn" onclick="submitReview()">Odeslat hodnocení</button>
+                    <div class="review-success-msg" id="review-success-msg">✓ Děkujeme za hodnocení!</div>
+                </div>
+
+                <!-- Seznam recenzí -->
+                <div id="reviews-list">
+                    <div class="reviews-loading">Načítám recenze…</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1251,18 +1374,19 @@
 
     // --- HLAVNÍ INIT (voláno po GDPR souhlasu) ---
     async function appInit() {
-        // Zkontroluj admin režim
-        if (checkAdminMode()) activateAdmin();
+        // Firebase Auth onAuthStateChanged se postará o admin aktivaci automaticky.
+        // Fallback: URL param (odstraní se po přesměrování)
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('admin') === '4FIN-ADMIN-2025') {
+            window.history.replaceState({}, '', window.location.pathname);
+            // aktivace proběhne přes onAuthStateChanged nebo loadPartnersForAdmin níže
+        }
 
         // Načti partnery z Firestore (fallback na hardcoded)
         if (window.firebaseReady && window.getPartnersFromFirestore) {
             try {
-                const fsPartners = isAdmin
-                    ? await window.getAllPartnersFromFirestore()
-                    : await window.getPartnersFromFirestore();
-                if (fsPartners && fsPartners.length > 0) {
-                    currentPartnersData = fsPartners;
-                }
+                const fsPartners = await window.getPartnersFromFirestore();
+                if (fsPartners && fsPartners.length > 0) currentPartnersData = fsPartners;
             } catch(e) { /* fallback na hardcoded */ }
         }
 
@@ -1562,35 +1686,162 @@
     let currentPartnersData = [...partnersData]; // začneme s hardcoded, přepíšeme z Firestore
 
     function checkAdminMode() {
+        // Primární: Firebase Auth (onAuthStateChanged nastaví window.currentAdminUser)
+        if (window.currentAdminUser) return true;
+        // Fallback: URL param (pro zpětnou kompatibilitu)
         const params = new URLSearchParams(window.location.search);
-        const adminParam = params.get('admin');
-        if (adminParam === '4FIN-ADMIN-2025') {
-            localStorage.setItem('4fin_admin', JSON.stringify({ time: Date.now() }));
+        if (params.get('admin') === '4FIN-ADMIN-2025') {
             window.history.replaceState({}, '', window.location.pathname);
-        }
-        const stored = localStorage.getItem('4fin_admin');
-        if (stored) {
-            try {
-                const s = JSON.parse(stored);
-                if (Date.now() - s.time < 8 * 60 * 60 * 1000) return true;
-            } catch(e) {}
-            localStorage.removeItem('4fin_admin');
+            return true;
         }
         return false;
     }
 
     function activateAdmin() {
+        if (isAdmin) return; // už aktivní
         isAdmin = true;
         document.getElementById('admin-bar').classList.add('visible');
         document.getElementById('app-container').style.marginTop = '46px';
+        renderPartners();
     }
 
-    function exitAdminMode() {
-        localStorage.removeItem('4fin_admin');
+    async function loadPartnersForAdmin() {
+        if (!window.getAllPartnersFromFirestore) return;
+        try {
+            const all = await window.getAllPartnersFromFirestore();
+            if (all && all.length > 0) { currentPartnersData = all; renderPartners(); }
+        } catch(e) {}
+    }
+
+    async function exitAdminMode() {
+        if (window.adminSignOut) await window.adminSignOut();
         isAdmin = false;
         document.getElementById('admin-bar').classList.remove('visible');
         document.getElementById('app-container').style.marginTop = '';
+        // Přenačti pouze aktivní partnery
+        if (window.getPartnersFromFirestore) {
+            const active = await window.getPartnersFromFirestore();
+            if (active) currentPartnersData = active;
+        }
         renderPartners();
+    }
+
+    // --- ADMIN LOGIN ---
+    function openAdminLogin() {
+        if (isAdmin) return; // už přihlášen
+        document.getElementById('admin-login-modal').classList.add('visible');
+        document.getElementById('admin-email').focus();
+        document.getElementById('admin-login-err').style.display = 'none';
+    }
+
+    function closeAdminLogin() {
+        document.getElementById('admin-login-modal').classList.remove('visible');
+        document.getElementById('admin-password').value = '';
+    }
+
+    async function doAdminLogin() {
+        const email = document.getElementById('admin-email').value.trim();
+        const password = document.getElementById('admin-password').value;
+        const btn = document.getElementById('admin-login-btn');
+        const err = document.getElementById('admin-login-err');
+        err.style.display = 'none';
+        if (!email || !password) {
+            err.textContent = 'Vyplňte e-mail a heslo.';
+            err.style.display = 'block';
+            return;
+        }
+        btn.disabled = true;
+        btn.textContent = 'Přihlašuji…';
+        try {
+            await window.adminSignIn(email, password);
+            closeAdminLogin();
+            activateAdmin();
+            loadPartnersForAdmin();
+        } catch(e) {
+            const msgs = {
+                'auth/user-not-found': 'Účet nenalezen.',
+                'auth/wrong-password': 'Špatné heslo.',
+                'auth/invalid-credential': 'Neplatné přihlašovací údaje.',
+                'auth/too-many-requests': 'Příliš mnoho pokusů, zkuste za chvíli.'
+            };
+            err.textContent = msgs[e.code] || 'Přihlášení se nezdařilo.';
+            err.style.display = 'block';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Přihlásit se';
+        }
+    }
+
+    // --- RECENZE ---
+    let currentDetailPartnerId = null;
+    let selectedStarRating = 0;
+
+    function selectStar(val) {
+        selectedStarRating = val;
+        document.querySelectorAll('.star-btn').forEach(b => {
+            b.classList.toggle('active', parseInt(b.dataset.val) <= val);
+        });
+    }
+
+    async function submitReview() {
+        if (selectedStarRating === 0) {
+            alert('Vyberte prosím hodnocení (1–5 hvězdiček).');
+            return;
+        }
+        const text = document.getElementById('review-text').value.trim();
+        const name = document.getElementById('review-name').value.trim() || 'Anonymní klient';
+        const btn = document.getElementById('review-submit-btn');
+        btn.disabled = true;
+        btn.textContent = 'Odesílám…';
+        try {
+            await window.addReview(currentDetailPartnerId, {
+                rating: selectedStarRating,
+                text: sanitize(text),
+                name: sanitize(name)
+            });
+            document.getElementById('review-success-msg').style.display = 'block';
+            document.getElementById('review-text').value = '';
+            document.getElementById('review-name').value = '';
+            selectedStarRating = 0;
+            document.querySelectorAll('.star-btn').forEach(b => b.classList.remove('active'));
+            setTimeout(() => {
+                document.getElementById('review-success-msg').style.display = 'none';
+            }, 3000);
+            loadReviews(currentDetailPartnerId);
+        } catch(e) {
+            alert('Nepodařilo se odeslat hodnocení. Zkuste znovu.');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Odeslat hodnocení';
+        }
+    }
+
+    async function loadReviews(partnerId) {
+        const list = document.getElementById('reviews-list');
+        if (!list || !window.getReviews) return;
+        list.innerHTML = '<div class="reviews-loading">Načítám recenze…</div>';
+        const reviews = await window.getReviews(partnerId);
+        if (reviews.length === 0) {
+            list.innerHTML = '<div class="reviews-empty">Zatím žádné recenze. Buďte první!</div>';
+            return;
+        }
+        const avgRating = (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1);
+        const stars = (n) => '★'.repeat(Math.round(n)) + '☆'.repeat(5 - Math.round(n));
+        list.innerHTML = `
+            <div style="text-align:center;padding:12px 0 20px;border-bottom:1px solid var(--border-color);margin-bottom:16px;">
+                <div style="font-size:32px;font-weight:700;">${avgRating}</div>
+                <div style="font-size:18px;color:#f59e0b;margin:4px 0;">${stars(parseFloat(avgRating))}</div>
+                <div style="font-size:12px;color:var(--text-secondary);">${reviews.length} ${reviews.length === 1 ? 'hodnocení' : reviews.length < 5 ? 'hodnocení' : 'hodnocení'}</div>
+            </div>
+            ${reviews.map(r => `
+            <div class="review-item">
+                <div class="review-item-header">
+                    <span class="review-item-name">${r.name}</span>
+                    <span class="review-item-stars" style="color:#f59e0b;">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</span>
+                </div>
+                <div class="review-item-date">${new Date(r.createdAt).toLocaleDateString('cs-CZ')}</div>
+                ${r.text ? `<div class="review-item-text" style="margin-top:6px;">${r.text}</div>` : ''}
+            </div>`).join('')}`;
     }
 
     // --- RENDER + FILTER PARTNERŮ ---
@@ -1660,29 +1911,42 @@
         if (!p) return;
         if(typeof gtag === 'function') gtag('event', 'zobrazeni_partnera', { 'partner_id': partnerId });
 
+        currentDetailPartnerId = partnerId;
+
         const logoImg = document.getElementById('det-logo');
-        logoImg.src = p.logo;
+        logoImg.src = p.logo || '';
         logoImg.style.width = p.invertLogo ? '50%' : '100%';
         logoImg.className = p.invertLogo ? 'invert-icon' : '';
 
         document.getElementById('det-title').innerText = p.name;
-        document.getElementById('det-desc').innerHTML = p.desc;
-        document.getElementById('det-benefit-value').innerHTML = p.benefitHtml;
-        document.getElementById('det-proof-value').innerHTML = p.proof;
+        document.getElementById('det-desc').innerHTML = p.desc || '';
+        document.getElementById('det-benefit-value').innerHTML = p.benefitHtml || '';
+        document.getElementById('det-proof-value').innerHTML = p.proof || '';
 
         const addrContainer = document.getElementById('det-address-container');
         if (p.address) { addrContainer.style.display = 'flex'; document.getElementById('det-address').innerText = p.address; }
         else { addrContainer.style.display = 'none'; }
 
         const linkBtn = document.getElementById('det-link');
-        if (p.link) { linkBtn.style.display = 'block'; linkBtn.setAttribute('data-href', p.link); linkBtn.innerText = p.linkText; }
+        if (p.link) { linkBtn.style.display = 'block'; linkBtn.setAttribute('data-href', p.link); linkBtn.innerText = p.linkText || 'Navštívit web'; }
         else { linkBtn.style.display = 'none'; }
 
         const revBtn = document.getElementById('det-reviews-link');
         if (p.reviewsLink) { revBtn.style.display = 'inline-block'; revBtn.href = p.reviewsLink; }
         else { revBtn.style.display = 'none'; }
 
+        // Reset recenzního formuláře
+        selectedStarRating = 0;
+        document.querySelectorAll('.star-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('review-text').value = '';
+        document.getElementById('review-name').value = '';
+        document.getElementById('review-success-msg').style.display = 'none';
+
         switchTab('screen-detail', false);
+
+        // Načti recenze asynchronně
+        if (window.getReviews) loadReviews(partnerId);
+        else document.getElementById('reviews-list').innerHTML = '';
     }
 
     const validInviteCodes = { "VIP-4FIN": true, "KOD-2026": true, "PREMIUM": true };
